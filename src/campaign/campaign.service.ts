@@ -4,9 +4,7 @@ import { Campaign, Prisma } from '@prisma/client';
 
 @Injectable()
 export class CampaignService {
-  constructor(private readonly campaignRepository: CampaignRepository) {
-    // Constructor logic can go here if needed
-  }
+  constructor(private readonly campaignRepository: CampaignRepository) {}
 
   async createCampaign(data: Prisma.CampaignCreateInput): Promise<Campaign> {
     try {

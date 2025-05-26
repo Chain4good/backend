@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from 'src/prisma/prisma.service';
+import { toCamelCase } from 'src/utils/string';
 
 @Injectable()
 export abstract class BaseRepository<
@@ -16,7 +17,7 @@ export abstract class BaseRepository<
 
   protected get model() {
     return this.prisma[
-      this.modelName.toLowerCase() as keyof PrismaService
+      toCamelCase(this.modelName) as keyof PrismaService
     ] as unknown as {
       findMany: (args?: {
         where?: TWhereInput;
@@ -26,7 +27,7 @@ export abstract class BaseRepository<
         include?: TInclude;
       }) => Promise<T[]>;
       findUnique: (args: {
-        where: { id: string };
+        where: { id: number };
         include?: TInclude;
       }) => Promise<T | null>;
       findFirst: (args: {
@@ -35,11 +36,11 @@ export abstract class BaseRepository<
       }) => Promise<T | null>;
       create: (args: { data: TCreateInput; include?: TInclude }) => Promise<T>;
       update: (args: {
-        where: { id: string };
+        where: { id: number };
         data: TUpdateInput;
         include?: TInclude;
       }) => Promise<T>;
-      delete: (args: { where: { id: string } }) => Promise<T>;
+      delete: (args: { where: { id: number } }) => Promise<T>;
       count: (args?: { where?: TWhereInput }) => Promise<number>;
     };
   }
@@ -52,7 +53,7 @@ export abstract class BaseRepository<
     return this.model.findMany(args);
   }
 
-  async findOne(id: string, include?: TInclude): Promise<T | null> {
+  async findOne(id: number, include?: TInclude): Promise<T | null> {
     return this.model.findUnique({
       where: { id },
       include,
@@ -80,7 +81,7 @@ export abstract class BaseRepository<
     });
   }
 
-  async update(id: string, data: TUpdateInput, include?: TInclude): Promise<T> {
+  async update(id: number, data: TUpdateInput, include?: TInclude): Promise<T> {
     return this.model.update({
       where: { id },
       data,
@@ -88,7 +89,7 @@ export abstract class BaseRepository<
     });
   }
 
-  async delete(id: string): Promise<T> {
+  async delete(id: number): Promise<T> {
     return this.model.delete({
       where: { id },
     });

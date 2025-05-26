@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { UsersService } from '../users/users.service';
+import { UserRegisterDTO } from './dtos/user-register.dto';
 
 @Injectable()
 export class AuthService {
@@ -28,19 +29,12 @@ export class AuthService {
     };
   }
 
-  async register(
-    email: string,
-    password: string,
-    name: string,
-    address: string,
-  ) {
-    const hashedPassword = await bcrypt.hash(password, 10);
-    const user = await this.usersService.create(
-      email,
-      hashedPassword,
-      name,
-      address,
-    );
+  async register(data: UserRegisterDTO) {
+    const hashedPassword = await bcrypt.hash(data.password, 10);
+    const user = await this.usersService.create({
+      ...data,
+      password: hashedPassword,
+    });
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { password: _, ...result } = user;
     return result;

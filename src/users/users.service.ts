@@ -1,6 +1,7 @@
-import { Injectable } from '@nestjs/common';
+import { ConflictException, Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { User } from '@prisma/client';
+import { Prisma, User } from '@prisma/client';
+import { UserRegisterDTO } from 'src/auth/dtos/user-register.dto';
 
 @Injectable()
 export class UsersService {
@@ -18,20 +19,28 @@ export class UsersService {
     });
   }
 
-  async create(
-    email: string,
-    password: string,
-    address: string,
-    name: string,
-  ): Promise<User> {
-    return this.prisma.user.create({
-      data: {
-        email,
-        password,
-        name,
-        address,
-        roleId: 2,
-      },
-    });
+  async create(userRegisterDto: UserRegisterDTO): Promise<User> {
+    const { email, password, name, address } = userRegisterDto;
+    try {
+      return await this.prisma.user.create({
+        data: {
+          email,
+          password,
+          name,
+          address,
+          roleId: 2,
+        },
+      });
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError) {
+        if (error.code === 'P2002') {
+          throw new ConflictException(
+            // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+            `Unique constraint failed on the fields: (${error?.meta?.target})`,
+          );
+        }
+      }
+      throw error;
+    }
   }
 }

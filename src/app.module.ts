@@ -6,6 +6,11 @@ import { PrismaModule } from './prisma/prisma.module';
 import { UsersModule } from './users/users.module';
 import { AuthModule } from './auth/auth.module';
 import { CampaignModule } from './campaign/campaign.module';
+import { FundraiseTypeModule } from './fundraise-type/fundraise-type.module';
+import { CoverModule } from './cover/cover.module';
+import { ImageModule } from './image/image.module';
+import { UploadModule } from './upload/upload.module';
+import { CategoryModule } from './category/category.module';
 
 @Module({
   imports: [
@@ -16,6 +21,11 @@ import { CampaignModule } from './campaign/campaign.module';
     UsersModule,
     AuthModule,
     CampaignModule,
+    FundraiseTypeModule,
+    CoverModule,
+    ImageModule,
+    UploadModule,
+    CategoryModule,
   ],
   controllers: [AppController],
   providers: [AppService],

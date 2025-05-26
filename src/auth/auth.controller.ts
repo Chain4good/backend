@@ -1,8 +1,10 @@
-import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Post, Res, UseGuards } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { GetUser } from './decorators/auth.decorators';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { LocalAuthGuard } from './guards/local-auth.guard';
+import { UserRegisterDTO } from './dtos/user-register.dto';
+import { Response } from 'express';
 
 @Controller('auth')
 export class AuthController {
@@ -10,26 +12,27 @@ export class AuthController {
 
   @UseGuards(LocalAuthGuard)
   @Post('login')
-  login(@GetUser() user: { email: string; id: number }) {
-    return this.authService.login(user);
+  login(
+    @GetUser() userReq: { email: string; id: number },
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const { user, access_token } = this.authService.login(userReq);
+    res.cookie('access_token', access_token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 24 * 60 * 60 * 1000,
+    });
+    return user;
   }
 
   @Post('register')
   async register(
     @Body()
-    body: {
-      email: string;
-      password: string;
-      address: string;
-      name: string;
-    },
+    userRegisterDto: UserRegisterDTO,
   ) {
-    return this.authService.register(
-      body.email,
-      body.password,
-      body.address,
-      body.name,
-    );
+    return this.authService.register(userRegisterDto);
   }
 
   @UseGuards(JwtAuthGuard)

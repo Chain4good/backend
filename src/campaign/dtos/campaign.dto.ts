@@ -1,4 +1,4 @@
-import { IsDate, IsDecimal, IsString } from 'class-validator';
+import { IsDate, IsDecimal, IsNumber, IsString } from 'class-validator';
 
 export class CampaignDTO {
   @IsString()
@@ -13,4 +13,6 @@ export class CampaignDTO {
   deadline: Date;
   @IsString()
   coverId: string;
+  @IsNumber()
+  totalDonated: number;
 }
