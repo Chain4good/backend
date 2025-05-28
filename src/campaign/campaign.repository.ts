@@ -4,7 +4,7 @@ import { Campaign, Prisma } from '@prisma/client';
 import { PrismaService } from 'src/prisma/prisma.service';
 
 @Injectable()
-export class CampaignRepository extends BaseRepository<
+export class CampaignRepo extends BaseRepository<
   Campaign,
   Prisma.CampaignWhereInput,
   Prisma.CampaignCreateInput,
@@ -13,6 +13,7 @@ export class CampaignRepository extends BaseRepository<
   Prisma.CampaignInclude
 > {
   protected readonly modelName = 'Campaign' as Prisma.ModelName;
+
   constructor(protected readonly prisma: PrismaService) {
     super();
   }

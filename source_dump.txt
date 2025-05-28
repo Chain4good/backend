@@ -1,0 +1,1785 @@
+# ==================================================
+# Path: /home/tommy/Documents/charity/backend
+# Detected tech: angular, gitlab_ci, javascript, python, react, typescript
+# ==================================================
+
+## DIRECTORY STRUCTURE
+```
+backend/
+├── .git/
+├── .vscode/
+├── dist/
+├── node_modules/
+├── prisma/
+│   ├── migrations/
+│   │   ├── 20250418033523_init/
+│   │   │   └── migration.sql
+│   │   ├── 20250523044952_change_name_fundraise/
+│   │   │   └── migration.sql
+│   │   ├── 20250526081123_add_table_report_and_status_campain_col/
+│   │   │   └── migration.sql
+│   │   └── migration_lock.toml
+│   └── schema.prisma
+├── src/
+│   ├── auth/
+│   │   ├── decorators/
+│   │   │   └── auth.decorators.ts
+│   │   ├── dtos/
+│   │   │   ├── user-login.dto.ts
+│   │   │   └── user-register.dto.ts
+│   │   ├── guards/
+│   │   │   ├── jwt-auth.guard.ts
+│   │   │   └── local-auth.guard.ts
+│   │   ├── strategies/
+│   │   │   ├── jwt.strategy.ts
+│   │   │   └── local.strategy.ts
+│   │   ├── auth.controller.ts
+│   │   ├── auth.module.ts
+│   │   └── auth.service.ts
+│   ├── campaign/
+│   │   ├── dto/
+│   │   │   ├── create-campaign.dto.ts
+│   │   │   └── update-campaign.dto.ts
+│   │   ├── entities/
+│   │   │   └── campaign.entity.ts
+│   │   ├── campaign.controller.ts
+│   │   ├── campaign.module.ts
+│   │   └── campaign.service.ts
+│   ├── category/
+│   │   ├── dto/
+│   │   │   ├── create-category.dto.ts
+│   │   │   └── update-category.dto.ts
+│   │   ├── entities/
+│   │   │   └── category.entity.ts
+│   │   ├── category.controller.ts
+│   │   ├── category.module.ts
+│   │   ├── category.repository.ts
+│   │   └── category.service.ts
+│   ├── common/
+│   │   ├── filters/
+│   │   │   └── all-exceptions.filter.ts
+│   │   └── base.repository.ts
+│   ├── cover/
+│   │   ├── dto/
+│   │   │   ├── create-cover.dto.ts
+│   │   │   └── update-cover.dto.ts
+│   │   ├── entities/
+│   │   │   └── cover.entity.ts
+│   │   ├── cover.controller.ts
+│   │   ├── cover.module.ts
+│   │   ├── cover.repository.ts
+│   │   └── cover.service.ts
+│   ├── fundraise-type/
+│   │   ├── dto/
+│   │   │   ├── create-fundraise-type.dto.ts
+│   │   │   └── update-fundraise-type.dto.ts
+│   │   ├── entities/
+│   │   │   └── fundraise-type.entity.ts
+│   │   ├── fundraise-type.controller.ts
+│   │   ├── fundraise-type.module.ts
+│   │   ├── fundraise-type.repository.ts
+│   │   └── fundraise-type.service.ts
+│   ├── image/
+│   │   ├── dto/
+│   │   │   ├── create-image.dto.ts
+│   │   │   └── update-image.dto.ts
+│   │   ├── entities/
+│   │   │   └── image.entity.ts
+│   │   ├── image.controller.ts
+│   │   ├── image.module.ts
+│   │   ├── image.repository.ts
+│   │   └── image.service.ts
+│   ├── prisma/
+│   │   ├── prisma.module.ts
+│   │   └── prisma.service.ts
+│   ├── providers/
+│   ├── upload/
+│   │   ├── cloudinary.provider.ts
+│   │   ├── upload.controller.ts
+│   │   ├── upload.module.ts
+│   │   └── upload.service.ts
+│   ├── users/
+│   │   ├── users.module.ts
+│   │   └── users.service.ts
+│   ├── utils/
+│   │   └── string.ts
+│   ├── app.controller.spec.ts
+│   ├── app.controller.ts
+│   ├── app.module.ts
+│   ├── app.service.ts
+│   └── main.ts
+├── test/
+│   ├── app.e2e-spec.ts
+│   └── jest-e2e.json
+├── uploads/
+│   ├── 1747997556334-2025-05-07 23-44-15.mkv
+│   └── 1747997612759-Screenshot from 2025-05-20 11-06-42.png
+├── .env
+├── .gitignore
+├── .prettierrc
+├── README.md
+├── eslint.config.mjs
+├── nest-cli.json
+├── package-lock.json
+├── package.json
+├── tsconfig.build.json
+└── tsconfig.json
+```
+
+## FILE CONTENTS
+
+### eslint.config.mjs
+```mjs
+// @ts-check
+import eslint from '@eslint/js';
+import eslintPluginPrettierRecommended from 'eslint-plugin-prettier/recommended';
+import globals from 'globals';
+import tseslint from 'typescript-eslint';
+
+export default tseslint.config(
+  {
+    ignores: ['eslint.config.mjs'],
+  },
+  eslint.configs.recommended,
+  ...tseslint.configs.recommendedTypeChecked,
+  eslintPluginPrettierRecommended,
+  {
+    languageOptions: {
+      globals: {
+        ...globals.node,
+        ...globals.jest,
+      },
+      ecmaVersion: 5,
+      sourceType: 'module',
+      parserOptions: {
+        projectService: true,
+        tsconfigRootDir: import.meta.dirname,
+      },
+    },
+  },
+  {
+    rules: {
+      '@typescript-eslint/no-explicit-any': 'off',
+      '@typescript-eslint/no-floating-promises': 'warn',
+      '@typescript-eslint/no-unsafe-argument': 'warn'
+    },
+  },
+);
+```
+
+### src/app.controller.ts
+```ts
+import { Controller, Get } from '@nestjs/common';
+import { AppService } from './app.service';
+
+@Controller()
+export class AppController {
+  constructor(private readonly appService: AppService) {}
+
+  @Get()
+  getHello(): string {
+    return this.appService.getHello();
+  }
+}
+
+```
+
+### src/app.module.ts
+```ts
+import { Module } from '@nestjs/common';
+import { ConfigModule } from '@nestjs/config';
+import { AppController } from './app.controller';
+import { AppService } from './app.service';
+import { PrismaModule } from './prisma/prisma.module';
+import { UsersModule } from './users/users.module';
+import { AuthModule } from './auth/auth.module';
+import { CampaignModule } from './campaign/campaign.module';
+import { FundraiseTypeModule } from './fundraise-type/fundraise-type.module';
+import { CoverModule } from './cover/cover.module';
+import { ImageModule } from './image/image.module';
+import { UploadModule } from './upload/upload.module';
+import { CategoryModule } from './category/category.module';
+import { CampaignModule } from './campaign/campaign.module';
+
+@Module({
+  imports: [
+    ConfigModule.forRoot({
+      isGlobal: true,
+    }),
+    PrismaModule,
+    UsersModule,
+    AuthModule,
+    CampaignModule,
+    FundraiseTypeModule,
+    CoverModule,
+    ImageModule,
+    UploadModule,
+    CategoryModule,
+  ],
+  controllers: [AppController],
+  providers: [AppService],
+})
+export class AppModule {}
+
+```
+
+### src/app.service.ts
+```ts
+import { Injectable } from '@nestjs/common';
+
+@Injectable()
+export class AppService {
+  getHello(): string {
+    return 'Hello World!';
+  }
+}
+
+```
+
+### src/app.controller.spec.ts
+```ts
+import { Test, TestingModule } from '@nestjs/testing';
+import { AppController } from './app.controller';
+import { AppService } from './app.service';
+
+describe('AppController', () => {
+  let appController: AppController;
+
+  beforeEach(async () => {
+    const app: TestingModule = await Test.createTestingModule({
+      controllers: [AppController],
+      providers: [AppService],
+    }).compile();
+
+    appController = app.get<AppController>(AppController);
+  });
+
+  describe('root', () => {
+    it('should return "Hello World!"', () => {
+      expect(appController.getHello()).toBe('Hello World!');
+    });
+  });
+});
+
+```
+
+### src/main.ts
+```ts
+import { NestFactory } from '@nestjs/core';
+import { AppModule } from './app.module';
+import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
+import * as cookieParser from 'cookie-parser';
+import { ValidationPipe } from '@nestjs/common';
+async function bootstrap() {
+  const app = await NestFactory.create(AppModule);
+  app.useGlobalPipes(new ValidationPipe());
+  // Use the exception filter
+  app.useGlobalFilters(new AllExceptionsFilter());
+  app.enableCors({
+    origin: 'http://localhost:5173', // Your frontend URL
+    credentials: true, // Important!
+  });
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-call
+  app.use(cookieParser());
+  await app.listen(process.env.PORT ?? 3000);
+}
+void bootstrap();
+
+```
+
+### src/auth/auth.controller.ts
+```ts
+import { Body, Controller, Get, Post, Res, UseGuards } from '@nestjs/common';
+import { AuthService } from './auth.service';
+import { GetUser } from './decorators/auth.decorators';
+import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import { LocalAuthGuard } from './guards/local-auth.guard';
+import { UserRegisterDTO } from './dtos/user-register.dto';
+import { Response } from 'express';
+
+@Controller('auth')
+export class AuthController {
+  constructor(private authService: AuthService) {}
+
+  @UseGuards(LocalAuthGuard)
+  @Post('login')
+  login(
+    @GetUser() userReq: { email: string; id: number },
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const { user, access_token } = this.authService.login(userReq);
+    res.cookie('access_token', access_token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 24 * 60 * 60 * 1000,
+    });
+    return user;
+  }
+
+  @Post('register')
+  async register(
+    @Body()
+    userRegisterDto: UserRegisterDTO,
+  ) {
+    return this.authService.register(userRegisterDto);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('profile')
+  getProfile(@GetUser() user: { id: number; email: string }) {
+    const existingUser = this.authService.getMe(user.id);
+    return existingUser;
+  }
+}
+
+```
+
+### src/auth/auth.module.ts
+```ts
+import { Module } from '@nestjs/common';
+import { PassportModule } from '@nestjs/passport';
+import { JwtModule } from '@nestjs/jwt';
+import { AuthService } from './auth.service';
+import { AuthController } from './auth.controller';
+import { JwtStrategy } from './strategies/jwt.strategy';
+import { LocalStrategy } from './strategies/local.strategy';
+import { UsersModule } from '../users/users.module';
+
+@Module({
+  imports: [
+    UsersModule,
+    PassportModule,
+    JwtModule.register({
+      secret: process.env.JWT_SECRET || 'secr3t',
+      signOptions: { expiresIn: '1h' },
+    }),
+  ],
+  providers: [AuthService, LocalStrategy, JwtStrategy],
+  controllers: [AuthController],
+  exports: [AuthService],
+})
+export class AuthModule {}
+
+```
+
+### src/auth/auth.service.ts
+```ts
+import { Injectable } from '@nestjs/common';
+import { JwtService } from '@nestjs/jwt';
+import * as bcrypt from 'bcrypt';
+import { UsersService } from '../users/users.service';
+import { UserRegisterDTO } from './dtos/user-register.dto';
+
+@Injectable()
+export class AuthService {
+  constructor(
+    private usersService: UsersService,
+    private jwtService: JwtService,
+  ) {}
+
+  async validateUser(email: string, password: string): Promise<any> {
+    const user = await this.usersService.findByEmail(email);
+    if (user && (await bcrypt.compare(password, user.password))) {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { password, ...result } = user;
+      return result;
+    }
+    return null;
+  }
+
+  login(user: { email: string; id: number }) {
+    const payload = { email: user.email, sub: user.id };
+    return {
+      access_token: this.jwtService.sign(payload),
+      user,
+    };
+  }
+
+  async register(data: UserRegisterDTO) {
+    const hashedPassword = await bcrypt.hash(data.password, 10);
+    const user = await this.usersService.create({
+      ...data,
+      password: hashedPassword,
+    });
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { password: _, ...result } = user;
+    return result;
+  }
+
+  async getMe(id: number) {
+    const user = await this.usersService.findById(id);
+    if (!user) {
+      throw new Error('User not found');
+    }
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { password, ...result } = user;
+    return result;
+  }
+}
+
+```
+
+### src/auth/dtos/user-register.dto.ts
+```ts
+import { IsEmail, IsNotEmpty, IsString } from 'class-validator';
+
+export class UserRegisterDTO {
+  @IsEmail()
+  @IsNotEmpty()
+  email: string;
+
+  @IsString()
+  @IsNotEmpty()
+  password: string;
+
+  @IsString()
+  @IsNotEmpty()
+  name: string;
+
+  @IsString()
+  @IsNotEmpty()
+  address: string;
+}
+
+```
+
+### src/auth/dtos/user-login.dto.ts
+```ts
+import { IsEmail, IsNotEmpty, IsString } from 'class-validator';
+
+export class UserLoginDto {
+  @IsEmail()
+  @IsNotEmpty()
+  email: string;
+
+  @IsString()
+  @IsNotEmpty()
+  password: string;
+}
+
+```
+
+### src/auth/decorators/auth.decorators.ts
+```ts
+import { createParamDecorator, ExecutionContext } from '@nestjs/common';
+import { Request } from 'express';
+
+export interface UserExtract {
+  id: number;
+  email: string;
+}
+
+export const GetUser = createParamDecorator(
+  (data: unknown, ctx: ExecutionContext) => {
+    const request: Request = ctx.switchToHttp().getRequest();
+    return request.user as UserExtract;
+  },
+);
+
+```
+
+### src/auth/strategies/jwt.strategy.ts
+```ts
+/* eslint-disable @typescript-eslint/no-unsafe-return */
+/* eslint-disable @typescript-eslint/require-await */
+import { ExtractJwt, Strategy } from 'passport-jwt';
+import { PassportStrategy } from '@nestjs/passport';
+import { Injectable } from '@nestjs/common';
+import { Request } from 'express';
+
+@Injectable()
+export class JwtStrategy extends PassportStrategy(Strategy) {
+  constructor() {
+    super({
+      jwtFromRequest: ExtractJwt.fromExtractors([
+        (request: Request) => {
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+          return request?.cookies?.access_token;
+        },
+      ]),
+      ignoreExpiration: false,
+      secretOrKey: process.env.JWT_SECRET || 'secr3t',
+    });
+  }
+
+  async validate(payload: any) {
+    return { id: payload.sub, email: payload.email };
+  }
+}
+
+```
+
+### src/auth/strategies/local.strategy.ts
+```ts
+import { Strategy } from 'passport-local';
+import { PassportStrategy } from '@nestjs/passport';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { AuthService } from '../auth.service';
+import { User } from '@prisma/client';
+
+@Injectable()
+export class LocalStrategy extends PassportStrategy(Strategy) {
+  constructor(private authService: AuthService) {
+    super({ usernameField: 'email' });
+  }
+
+  async validate(email: string, password: string): Promise<any> {
+    const user = await this.authService.validateUser(email, password);
+    if (!user) {
+      throw new UnauthorizedException('Invalid credentials');
+    }
+    return user;
+  }
+}
+
+```
+
+### src/auth/guards/jwt-auth.guard.ts
+```ts
+import { Injectable } from '@nestjs/common';
+import { AuthGuard } from '@nestjs/passport';
+
+@Injectable()
+export class JwtAuthGuard extends AuthGuard('jwt') {}
+
+```
+
+### src/auth/guards/local-auth.guard.ts
+```ts
+import { Injectable } from '@nestjs/common';
+import { AuthGuard } from '@nestjs/passport';
+
+@Injectable()
+export class LocalAuthGuard extends AuthGuard('local') {}
+
+```
+
+### src/cover/cover.controller.ts
+```ts
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+} from '@nestjs/common';
+import { CoverService } from './cover.service';
+import { CreateCoverDto } from './dto/create-cover.dto';
+import { UpdateCoverDto } from './dto/update-cover.dto';
+
+@Controller('covers')
+export class CoverController {
+  constructor(private readonly coverService: CoverService) {}
+
+  @Post()
+  create(@Body() createCoverDto: CreateCoverDto) {
+    return this.coverService.create(createCoverDto);
+  }
+
+  @Get()
+  findAll() {
+    return this.coverService.findAll();
+  }
+
+  @Get(':id')
+  findOne(@Param('id') id: string) {
+    return this.coverService.findOne(+id);
+  }
+
+  @Patch(':id')
+  update(@Param('id') id: string, @Body() updateCoverDto: UpdateCoverDto) {
+    return this.coverService.update(+id, updateCoverDto);
+  }
+
+  @Delete(':id')
+  remove(@Param('id') id: string) {
+    return this.coverService.remove(+id);
+  }
+}
+
+```
+
+### src/cover/cover.module.ts
+```ts
+import { Module } from '@nestjs/common';
+import { CoverService } from './cover.service';
+import { CoverController } from './cover.controller';
+import { CoverRepo } from './cover.repository';
+
+@Module({
+  controllers: [CoverController],
+  providers: [CoverService, CoverRepo],
+})
+export class CoverModule {}
+
+```
+
+### src/cover/cover.service.ts
+```ts
+import { Injectable } from '@nestjs/common';
+import { CreateCoverDto } from './dto/create-cover.dto';
+import { UpdateCoverDto } from './dto/update-cover.dto';
+import { CoverRepo } from './cover.repository';
+
+@Injectable()
+export class CoverService {
+  constructor(private readonly coverRepo: CoverRepo) {}
+  create(createCoverDto: CreateCoverDto) {
+    return this.coverRepo.create(createCoverDto);
+  }
+
+  findAll() {
+    return this.coverRepo.findAll();
+  }
+
+  findOne(id: number) {
+    return this.coverRepo.findOne(id);
+  }
+
+  update(id: number, updateCoverDto: UpdateCoverDto) {
+    return this.coverRepo.update(id, updateCoverDto);
+  }
+
+  remove(id: number) {
+    return this.coverRepo.delete(id);
+  }
+}
+
+```
+
+### src/cover/cover.repository.ts
+```ts
+import { Injectable } from '@nestjs/common';
+import { BaseRepository } from 'src/common/base.repository';
+import { Cover, Prisma } from '@prisma/client';
+import { PrismaService } from 'src/prisma/prisma.service';
+
+@Injectable()
+export class CoverRepo extends BaseRepository<
+  Cover,
+  Prisma.CoverWhereInput,
+  Prisma.CoverCreateInput,
+  Prisma.CoverUpdateInput,
+  Prisma.CoverOrderByWithRelationInput,
+  Prisma.CoverInclude
+> {
+  protected readonly modelName = 'Cover' as Prisma.ModelName;
+  constructor(protected readonly prisma: PrismaService) {
+    super();
+  }
+}
+
+```
+
+### src/cover/entities/cover.entity.ts
+```ts
+export class Cover {}
+
+```
+
+### src/cover/dto/create-cover.dto.ts
+```ts
+import { IsEnum, IsNotEmpty, IsString } from 'class-validator';
+import { ImageType } from '@prisma/client';
+
+export class CreateCoverDto {
+  @IsNotEmpty()
+  @IsString()
+  url: string;
+
+  @IsEnum(ImageType)
+  type?: ImageType;
+}
+
+```
+
+### src/cover/dto/update-cover.dto.ts
+```ts
+import { PartialType } from '@nestjs/mapped-types';
+import { CreateCoverDto } from './create-cover.dto';
+
+export class UpdateCoverDto extends PartialType(CreateCoverDto) {}
+
+```
+
+### src/common/base.repository.ts
+```ts
+import { Injectable } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
+import { PrismaService } from 'src/prisma/prisma.service';
+import { toCamelCase } from 'src/utils/string';
+
+@Injectable()
+export abstract class BaseRepository<
+  T,
+  TWhereInput,
+  TCreateInput,
+  TUpdateInput,
+  TOrderByInput,
+  TInclude,
+> {
+  protected abstract readonly prisma: PrismaService;
+  protected abstract readonly modelName: Prisma.ModelName;
+
+  protected get model() {
+    return this.prisma[
+      toCamelCase(this.modelName) as keyof PrismaService
+    ] as unknown as {
+      findMany: (args?: {
+        where?: TWhereInput;
+        orderBy?: TOrderByInput;
+        skip?: number;
+        take?: number;
+        include?: TInclude;
+      }) => Promise<T[]>;
+      findUnique: (args: {
+        where: { id: number };
+        include?: TInclude;
+      }) => Promise<T | null>;
+      findFirst: (args: {
+        where: TWhereInput;
+        include?: TInclude;
+      }) => Promise<T | null>;
+      create: (args: { data: TCreateInput; include?: TInclude }) => Promise<T>;
+      update: (args: {
+        where: { id: number };
+        data: TUpdateInput;
+        include?: TInclude;
+      }) => Promise<T>;
+      delete: (args: { where: { id: number } }) => Promise<T>;
+      count: (args?: { where?: TWhereInput }) => Promise<number>;
+    };
+  }
+
+  async findAll(args?: {
+    where?: TWhereInput;
+    orderBy?: TOrderByInput;
+    include?: TInclude;
+  }): Promise<T[]> {
+    return this.model.findMany(args);
+  }
+
+  async findOne(id: number, include?: TInclude): Promise<T | null> {
+    return this.model.findUnique({
+      where: { id },
+      include,
+    });
+  }
+
+  async findBy(where: TWhereInput, include?: TInclude): Promise<T[]> {
+    return this.model.findMany({
+      where,
+      include,
+    });
+  }
+
+  async findOneBy(where: TWhereInput, include?: TInclude): Promise<T | null> {
+    return this.model.findFirst({
+      where,
+      include,
+    });
+  }
+
+  async create(data: TCreateInput, include?: TInclude): Promise<T> {
+    return this.model.create({
+      data,
+      include,
+    });
+  }
+
+  async update(id: number, data: TUpdateInput, include?: TInclude): Promise<T> {
+    return this.model.update({
+      where: { id },
+      data,
+      include,
+    });
+  }
+
+  async delete(id: number): Promise<T> {
+    return this.model.delete({
+      where: { id },
+    });
+  }
+
+  async count(where?: TWhereInput): Promise<number> {
+    return this.model.count({
+      where,
+    });
+  }
+
+  async paginate(
+    page: number = 1,
+    limit: number = 10,
+    options?: {
+      where?: TWhereInput;
+      orderBy?: TOrderByInput;
+      include?: TInclude;
+    },
+  ): Promise<{
+    data: T[];
+    meta: {
+      total: number;
+      page: number;
+      limit: number;
+    };
+  }> {
+    const skip = (page - 1) * limit;
+    const { where, orderBy, include } = options || {};
+
+    const [data, total] = await Promise.all([
+      this.model.findMany({
+        where,
+        orderBy,
+        skip,
+        take: limit,
+        include,
+      }),
+      this.model.count({ where }),
+    ]);
+
+    return {
+      data,
+      meta: {
+        total,
+        page,
+        limit,
+      },
+    };
+  }
+}
+
+```
+
+### src/common/filters/all-exceptions.filter.ts
+```ts
+import {
+  ExceptionFilter,
+  Catch,
+  ArgumentsHost,
+  HttpException,
+  HttpStatus,
+} from '@nestjs/common';
+import { Response } from 'express';
+
+@Catch()
+export class AllExceptionsFilter implements ExceptionFilter {
+  catch(exception: unknown, host: ArgumentsHost) {
+    const ctx = host.switchToHttp();
+    const response = ctx.getResponse<Response>();
+    const request = ctx.getRequest<Request>();
+
+    const status =
+      exception instanceof HttpException
+        ? exception.getStatus()
+        : HttpStatus.INTERNAL_SERVER_ERROR;
+
+    const message =
+      exception instanceof HttpException
+        ? exception.getResponse()
+        : typeof exception === 'object' &&
+            exception !== null &&
+            'message' in exception
+          ? (exception as { message: string }).message
+          : 'Internal server error';
+
+    const stack =
+      typeof exception === 'object' &&
+      exception !== null &&
+      'stack' in exception
+        ? (exception as { stack: string }).stack
+        : undefined;
+
+    response.status(status).json({
+      statusCode: status,
+      message,
+      timestamp: new Date().toISOString(),
+      path: request.url,
+      // Optional: send stack trace
+      stack,
+    });
+  }
+}
+
+```
+
+### src/category/category.repository.ts
+```ts
+import { Injectable } from '@nestjs/common';
+import { BaseRepository } from 'src/common/base.repository';
+import { Category, Prisma } from '@prisma/client';
+import { PrismaService } from 'src/prisma/prisma.service';
+
+@Injectable()
+export class CategoryRepo extends BaseRepository<
+  Category,
+  Prisma.CategoryWhereInput,
+  Prisma.CategoryCreateInput,
+  Prisma.CategoryUpdateInput,
+  Prisma.CategoryOrderByWithRelationInput,
+  Prisma.CategoryInclude
+> {
+  protected readonly modelName = 'Category' as Prisma.ModelName;
+  constructor(protected readonly prisma: PrismaService) {
+    super();
+  }
+}
+
+```
+
+### src/category/category.controller.ts
+```ts
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+} from '@nestjs/common';
+import { CategoryService } from './category.service';
+import { CreateCategoryDto } from './dto/create-category.dto';
+import { UpdateCategoryDto } from './dto/update-category.dto';
+
+@Controller('categories')
+export class CategoryController {
+  constructor(private readonly categoryService: CategoryService) {}
+
+  @Post()
+  create(@Body() createCategoryDto: CreateCategoryDto) {
+    return this.categoryService.create(createCategoryDto);
+  }
+
+  @Get()
+  findAll() {
+    return this.categoryService.findAll();
+  }
+
+  @Get(':id')
+  findOne(@Param('id') id: string) {
+    return this.categoryService.findOne(+id);
+  }
+
+  @Patch(':id')
+  update(
+    @Param('id') id: string,
+    @Body() updateCategoryDto: UpdateCategoryDto,
+  ) {
+    return this.categoryService.update(+id, updateCategoryDto);
+  }
+
+  @Delete(':id')
+  remove(@Param('id') id: string) {
+    return this.categoryService.remove(+id);
+  }
+}
+
+```
+
+### src/category/category.module.ts
+```ts
+import { Module } from '@nestjs/common';
+import { CategoryService } from './category.service';
+import { CategoryController } from './category.controller';
+import { CategoryRepo } from './category.repository';
+
+@Module({
+  controllers: [CategoryController],
+  providers: [CategoryService, CategoryRepo],
+})
+export class CategoryModule {}
+
+```
+
+### src/category/category.service.ts
+```ts
+import { Injectable } from '@nestjs/common';
+import { CreateCategoryDto } from './dto/create-category.dto';
+import { UpdateCategoryDto } from './dto/update-category.dto';
+import { CategoryRepo } from './category.repository';
+
+@Injectable()
+export class CategoryService {
+  constructor(private readonly categoryRepo: CategoryRepo) {}
+
+  create(createCategoryDto: CreateCategoryDto) {
+    return this.categoryRepo.create(createCategoryDto);
+  }
+
+  findAll() {
+    return this.categoryRepo.findAll();
+  }
+
+  findOne(id: number) {
+    return this.categoryRepo.findOne(id);
+  }
+
+  update(id: number, updateCategoryDto: UpdateCategoryDto) {
+    return this.categoryRepo.update(id, updateCategoryDto);
+  }
+
+  remove(id: number) {
+    return this.categoryRepo.delete(id);
+  }
+}
+
+```
+
+### src/category/entities/category.entity.ts
+```ts
+export class Category {}
+
+```
+
+### src/category/dto/update-category.dto.ts
+```ts
+import { PartialType } from '@nestjs/mapped-types';
+import { CreateCategoryDto } from './create-category.dto';
+
+export class UpdateCategoryDto extends PartialType(CreateCategoryDto) {}
+
+```
+
+### src/category/dto/create-category.dto.ts
+```ts
+import { IsNotEmpty, IsOptional, IsString } from 'class-validator';
+
+export class CreateCategoryDto {
+  @IsString()
+  @IsNotEmpty({ message: 'Name is required' })
+  name: string;
+
+  @IsString()
+  @IsOptional()
+  icon?: string;
+
+  @IsString()
+  @IsOptional()
+  description?: string;
+}
+
+```
+
+### src/prisma/prisma.module.ts
+```ts
+import { Module, Global } from '@nestjs/common';
+import { PrismaService } from './prisma.service';
+
+@Global()
+@Module({
+  providers: [PrismaService],
+  exports: [PrismaService],
+})
+export class PrismaModule {}
+
+```
+
+### src/prisma/prisma.service.ts
+```ts
+/* eslint-disable @typescript-eslint/no-unsafe-call */
+// src/prisma/prisma.service.ts
+
+import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
+import { PrismaClient } from '@prisma/client';
+
+@Injectable()
+export class PrismaService
+  extends PrismaClient
+  implements OnModuleInit, OnModuleDestroy
+{
+  async onModuleInit() {
+    await this.$connect();
+  }
+
+  async onModuleDestroy() {
+    await this.$disconnect();
+  }
+}
+
+```
+
+### src/fundraise-type/fundraise-type.repository.ts
+```ts
+import { Injectable } from '@nestjs/common';
+import { BaseRepository } from 'src/common/base.repository';
+import { FundraiseType, Prisma } from '@prisma/client';
+import { PrismaService } from 'src/prisma/prisma.service';
+
+@Injectable()
+export class FundraiseTypeRepo extends BaseRepository<
+  FundraiseType,
+  Prisma.FundraiseTypeWhereInput,
+  Prisma.FundraiseTypeCreateInput,
+  Prisma.FundraiseTypeUpdateInput,
+  Prisma.FundraiseTypeOrderByWithRelationInput,
+  Prisma.FundraiseTypeInclude
+> {
+  protected readonly modelName = 'FundraiseType' as Prisma.ModelName;
+  constructor(protected readonly prisma: PrismaService) {
+    super();
+  }
+}
+
+```
+
+### src/fundraise-type/fundraise-type.service.ts
+```ts
+import { Injectable } from '@nestjs/common';
+import { CreateFundraiseTypeDto } from './dto/create-fundraise-type.dto';
+import { UpdateFundraiseTypeDto } from './dto/update-fundraise-type.dto';
+import { FundraiseTypeRepo } from './fundraise-type.repository';
+
+@Injectable()
+export class FundraiseTypeService {
+  constructor(private readonly fundraiseTypeRepo: FundraiseTypeRepo) {}
+
+  create(createFundraiseTypeDto: CreateFundraiseTypeDto) {
+    return this.fundraiseTypeRepo.create(createFundraiseTypeDto);
+  }
+
+  findAll() {
+    return this.fundraiseTypeRepo.findAll();
+  }
+
+  findOne(id: number) {
+    return this.fundraiseTypeRepo.findOne(id);
+  }
+
+  update(id: number, updateFundraiseTypeDto: UpdateFundraiseTypeDto) {
+    return this.fundraiseTypeRepo.update(id, updateFundraiseTypeDto);
+  }
+
+  remove(id: number) {
+    return this.fundraiseTypeRepo.delete(id);
+  }
+}
+
+```
+
+### src/fundraise-type/fundraise-type.module.ts
+```ts
+import { Module } from '@nestjs/common';
+import { FundraiseTypeService } from './fundraise-type.service';
+import { FundraiseTypeController } from './fundraise-type.controller';
+import { FundraiseTypeRepo } from './fundraise-type.repository';
+
+@Module({
+  controllers: [FundraiseTypeController],
+  providers: [FundraiseTypeService, FundraiseTypeRepo],
+})
+export class FundraiseTypeModule {}
+
+```
+
+### src/fundraise-type/fundraise-type.controller.ts
+```ts
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  ParseIntPipe,
+} from '@nestjs/common';
+import { FundraiseTypeService } from './fundraise-type.service';
+import { CreateFundraiseTypeDto } from './dto/create-fundraise-type.dto';
+import { UpdateFundraiseTypeDto } from './dto/update-fundraise-type.dto';
+
+@Controller('fundraise-types')
+export class FundraiseTypeController {
+  constructor(private readonly fundraiseTypeService: FundraiseTypeService) {}
+
+  @Post()
+  create(@Body() createFundraiseTypeDto: CreateFundraiseTypeDto) {
+    return this.fundraiseTypeService.create(createFundraiseTypeDto);
+  }
+
+  @Get()
+  findAll() {
+    return this.fundraiseTypeService.findAll();
+  }
+
+  @Get(':id')
+  findOne(@Param('id', ParseIntPipe) id: number) {
+    return this.fundraiseTypeService.findOne(id);
+  }
+
+  @Patch(':id')
+  update(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() updateFundraiseTypeDto: UpdateFundraiseTypeDto,
+  ) {
+    return this.fundraiseTypeService.update(id, updateFundraiseTypeDto);
+  }
+
+  @Delete(':id')
+  remove(@Param('id', ParseIntPipe) id: number) {
+    return this.fundraiseTypeService.remove(id);
+  }
+}
+
+```
+
+### src/fundraise-type/entities/fundraise-type.entity.ts
+```ts
+export class FundraiseType {
+  id: number;
+  name: string;
+  description: string;
+}
+
+```
+
+### src/fundraise-type/dto/update-fundraise-type.dto.ts
+```ts
+import { PartialType } from '@nestjs/mapped-types';
+import { CreateFundraiseTypeDto } from './create-fundraise-type.dto';
+
+export class UpdateFundraiseTypeDto extends PartialType(
+  CreateFundraiseTypeDto,
+) {}
+
+```
+
+### src/fundraise-type/dto/create-fundraise-type.dto.ts
+```ts
+import { IsString, IsNotEmpty } from 'class-validator';
+
+export class CreateFundraiseTypeDto {
+  @IsString()
+  @IsNotEmpty()
+  name: string;
+  @IsString()
+  @IsNotEmpty()
+  description: string;
+}
+
+```
+
+### src/utils/string.ts
+```ts
+export function toCamelCase(name: string) {
+  return name.charAt(0).toLowerCase() + name.slice(1);
+}
+
+```
+
+### src/users/users.module.ts
+```ts
+import { Module } from '@nestjs/common';
+import { UsersService } from './users.service';
+import { PrismaModule } from '../prisma/prisma.module';
+
+@Module({
+  imports: [PrismaModule],
+  providers: [UsersService],
+  exports: [UsersService],
+})
+export class UsersModule {}
+
+```
+
+### src/users/users.service.ts
+```ts
+import { ConflictException, Injectable } from '@nestjs/common';
+import { PrismaService } from '../prisma/prisma.service';
+import { Prisma, User } from '@prisma/client';
+import { UserRegisterDTO } from 'src/auth/dtos/user-register.dto';
+
+@Injectable()
+export class UsersService {
+  constructor(private prisma: PrismaService) {}
+
+  async findByEmail(email: string): Promise<User | null> {
+    return this.prisma.user.findUnique({
+      where: { email },
+    });
+  }
+
+  async findById(id: number): Promise<User | null> {
+    return this.prisma.user.findUnique({
+      where: { id },
+    });
+  }
+
+  async create(userRegisterDto: UserRegisterDTO): Promise<User> {
+    const { email, password, name, address } = userRegisterDto;
+    try {
+      return await this.prisma.user.create({
+        data: {
+          email,
+          password,
+          name,
+          address,
+          roleId: 2,
+        },
+      });
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError) {
+        if (error.code === 'P2002') {
+          throw new ConflictException(
+            // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+            `Unique constraint failed on the fields: (${error?.meta?.target})`,
+          );
+        }
+      }
+      throw error;
+    }
+  }
+}
+
+```
+
+### src/upload/upload.module.ts
+```ts
+import { Module } from '@nestjs/common';
+import { UploadController } from './upload.controller';
+import { UploadService } from './upload.service';
+import { CloudinaryProvider } from './cloudinary.provider';
+import { mkdir } from 'fs/promises';
+
+@Module({
+  controllers: [UploadController],
+  providers: [
+    UploadService,
+    CloudinaryProvider,
+    {
+      provide: 'UPLOAD_INIT',
+      useFactory: async () => {
+        try {
+          await mkdir('./uploads', { recursive: true });
+        } catch (error) {
+          // Ignore error if directory already exists
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+          if (error.code !== 'EEXIST') {
+            throw error;
+          }
+        }
+      },
+    },
+  ],
+})
+export class UploadModule {}
+
+```
+
+### src/upload/cloudinary.provider.ts
+```ts
+import { v2 as cloudinary } from 'cloudinary';
+
+export const CloudinaryProvider = {
+  provide: 'CLOUDINARY',
+  useFactory: () => {
+    return cloudinary.config({
+      cloud_name: process.env.CLOUDINARY_NAME,
+      api_key: process.env.CLOUDINARY_API_KEY,
+      api_secret: process.env.CLOUDINARY_API_SECRET,
+      secure: true,
+    });
+  },
+};
+
+```
+
+### src/upload/upload.service.ts
+```ts
+/* eslint-disable @typescript-eslint/prefer-promise-reject-errors */
+import { Injectable, OnModuleInit } from '@nestjs/common';
+import { v2 as cloudinary } from 'cloudinary';
+import { createReadStream } from 'fs';
+import { ConfigService } from '@nestjs/config';
+
+@Injectable()
+export class UploadService implements OnModuleInit {
+  constructor(private configService: ConfigService) {}
+
+  onModuleInit() {
+    const cloudName: string | undefined = this.configService.get(
+      'CLOUDINARY_CLOUD_NAME',
+    );
+    const apiKey: string | undefined =
+      this.configService.get('CLOUDINARY_API_KEY');
+    const apiSecret: string | undefined = this.configService.get(
+      'CLOUDINARY_API_SECRET',
+    );
+
+    console.log(cloudName, apiKey, apiSecret);
+
+    if (!cloudName || !apiKey || !apiSecret) {
+      throw new Error('Missing required Cloudinary configuration');
+    }
+
+    cloudinary.config({
+      cloud_name: cloudName,
+      api_key: apiKey,
+      api_secret: apiSecret,
+    });
+  }
+
+  async uploadImage(file: Express.Multer.File) {
+    return new Promise((resolve, reject) => {
+      const uploadStream = cloudinary.uploader.upload_stream(
+        {
+          folder: 'charity',
+          resource_type: 'auto',
+        },
+        (error, result) => {
+          if (error) return reject(error);
+          resolve(result);
+        },
+      );
+      createReadStream(file.path).pipe(uploadStream);
+    });
+  }
+}
+
+```
+
+### src/upload/upload.controller.ts
+```ts
+import {
+  Controller,
+  Post,
+  UploadedFile,
+  UseInterceptors,
+} from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { UploadService } from './upload.service';
+import { diskStorage } from 'multer';
+import { unlink } from 'fs/promises';
+
+@Controller('uploads')
+export class UploadController {
+  constructor(private readonly uploadService: UploadService) {}
+
+  @Post()
+  @UseInterceptors(
+    FileInterceptor('file', {
+      storage: diskStorage({
+        destination: './uploads',
+        filename: (req, file, cb) => {
+          const uniqueName = `${Date.now()}-${file.originalname}`;
+          cb(null, uniqueName);
+        },
+      }),
+    }),
+  )
+  async uploadFile(@UploadedFile() file: Express.Multer.File) {
+    try {
+      const result = await this.uploadService.uploadImage(file);
+
+      await unlink(file.path);
+
+      return { url: (result as { secure_url: string }).secure_url };
+    } catch (error) {
+      await unlink(file.path);
+      throw error;
+    }
+  }
+}
+
+```
+
+### src/image/image.controller.ts
+```ts
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+} from '@nestjs/common';
+import { ImageService } from './image.service';
+import { CreateImageDto } from './dto/create-image.dto';
+import { UpdateImageDto } from './dto/update-image.dto';
+
+@Controller('image')
+export class ImageController {
+  constructor(private readonly imageService: ImageService) {}
+
+  @Post()
+  create(@Body() createImageDto: CreateImageDto) {
+    return this.imageService.create(createImageDto);
+  }
+
+  @Get()
+  findAll() {
+    return this.imageService.findAll();
+  }
+
+  @Get(':id')
+  findOne(@Param('id') id: string) {
+    return this.imageService.findOne(+id);
+  }
+
+  @Patch(':id')
+  update(@Param('id') id: string, @Body() updateImageDto: UpdateImageDto) {
+    return this.imageService.update(+id, updateImageDto);
+  }
+
+  @Delete(':id')
+  remove(@Param('id') id: string) {
+    return this.imageService.remove(+id);
+  }
+}
+
+```
+
+### src/image/image.module.ts
+```ts
+import { Module } from '@nestjs/common';
+import { ImageService } from './image.service';
+import { ImageController } from './image.controller';
+import { ImageRepo } from './image.repository';
+
+@Module({
+  controllers: [ImageController],
+  providers: [ImageService, ImageRepo],
+})
+export class ImageModule {}
+
+```
+
+### src/image/image.repository.ts
+```ts
+import { Injectable } from '@nestjs/common';
+import { BaseRepository } from 'src/common/base.repository';
+import { Image, Prisma } from '@prisma/client';
+import { PrismaService } from 'src/prisma/prisma.service';
+
+@Injectable()
+export class ImageRepo extends BaseRepository<
+  Image,
+  Prisma.ImageWhereInput,
+  Prisma.ImageCreateInput,
+  Prisma.ImageUpdateInput,
+  Prisma.ImageOrderByWithRelationInput,
+  Prisma.ImageInclude
+> {
+  protected readonly modelName = 'Image' as Prisma.ModelName;
+  constructor(protected readonly prisma: PrismaService) {
+    super();
+  }
+}
+
+```
+
+### src/image/image.service.ts
+```ts
+import { Injectable } from '@nestjs/common';
+import { CreateImageDto } from './dto/create-image.dto';
+import { UpdateImageDto } from './dto/update-image.dto';
+import { ImageRepo } from './image.repository';
+
+@Injectable()
+export class ImageService {
+  constructor(private readonly imageRepo: ImageRepo) {}
+  create(createImageDto: CreateImageDto) {
+    return this.imageRepo.create(createImageDto);
+  }
+
+  findAll() {
+    return this.imageRepo.findAll();
+  }
+
+  findOne(id: number) {
+    return this.imageRepo.findOne(id);
+  }
+
+  update(id: number, updateImageDto: UpdateImageDto) {
+    return this.imageRepo.update(id, updateImageDto);
+  }
+
+  remove(id: number) {
+    return this.imageRepo.delete(id);
+  }
+}
+
+```
+
+### src/image/entities/image.entity.ts
+```ts
+export class Image {}
+
+```
+
+### src/image/dto/update-image.dto.ts
+```ts
+import { PartialType } from '@nestjs/mapped-types';
+import { CreateImageDto } from './create-image.dto';
+
+export class UpdateImageDto extends PartialType(CreateImageDto) {}
+
+```
+
+### src/image/dto/create-image.dto.ts
+```ts
+import { ImageType } from '@prisma/client';
+import {
+  IsEnum,
+  IsInt,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  IsUrl,
+} from 'class-validator';
+
+export class CreateImageDto {
+  @IsNotEmpty()
+  @IsString()
+  @IsUrl({}, { message: 'URL must be a valid URL' })
+  url: string;
+
+  @IsOptional()
+  @IsInt({ message: 'Campaign ID must be an integer' })
+  campaignId?: number;
+
+  @IsOptional()
+  @IsEnum(ImageType, { message: 'Type must be either IMAGE or VIDEO' })
+  type?: ImageType;
+}
+
+```
+
+### src/campaign/campaign.controller.ts
+```ts
+import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import { CampaignService } from './campaign.service';
+import { CreateCampaignDto } from './dto/create-campaign.dto';
+import { UpdateCampaignDto } from './dto/update-campaign.dto';
+
+@Controller('campaign')
+export class CampaignController {
+  constructor(private readonly campaignService: CampaignService) {}
+
+  @Post()
+  create(@Body() createCampaignDto: CreateCampaignDto) {
+    return this.campaignService.create(createCampaignDto);
+  }
+
+  @Get()
+  findAll() {
+    return this.campaignService.findAll();
+  }
+
+  @Get(':id')
+  findOne(@Param('id') id: string) {
+    return this.campaignService.findOne(+id);
+  }
+
+  @Patch(':id')
+  update(@Param('id') id: string, @Body() updateCampaignDto: UpdateCampaignDto) {
+    return this.campaignService.update(+id, updateCampaignDto);
+  }
+
+  @Delete(':id')
+  remove(@Param('id') id: string) {
+    return this.campaignService.remove(+id);
+  }
+}
+
+```
+
+### src/campaign/campaign.service.ts
+```ts
+import { Injectable } from '@nestjs/common';
+import { CreateCampaignDto } from './dto/create-campaign.dto';
+import { UpdateCampaignDto } from './dto/update-campaign.dto';
+
+@Injectable()
+export class CampaignService {
+  create(createCampaignDto: CreateCampaignDto) {
+    return 'This action adds a new campaign';
+  }
+
+  findAll() {
+    return `This action returns all campaign`;
+  }
+
+  findOne(id: number) {
+    return `This action returns a #${id} campaign`;
+  }
+
+  update(id: number, updateCampaignDto: UpdateCampaignDto) {
+    return `This action updates a #${id} campaign`;
+  }
+
+  remove(id: number) {
+    return `This action removes a #${id} campaign`;
+  }
+}
+
+```
+
+### src/campaign/campaign.module.ts
+```ts
+import { Module } from '@nestjs/common';
+import { CampaignService } from './campaign.service';
+import { CampaignController } from './campaign.controller';
+
+@Module({
+  controllers: [CampaignController],
+  providers: [CampaignService],
+})
+export class CampaignModule {}
+
+```
+
+### src/campaign/entities/campaign.entity.ts
+```ts
+export class Campaign {}
+
+```
+
+### src/campaign/dto/update-campaign.dto.ts
+```ts
+import { PartialType } from '@nestjs/mapped-types';
+import { CreateCampaignDto } from './create-campaign.dto';
+
+export class UpdateCampaignDto extends PartialType(CreateCampaignDto) {}
+
+```
+
+### src/campaign/dto/create-campaign.dto.ts
+```ts
+export class CreateCampaignDto {}
+
+```
+
+### test/app.e2e-spec.ts
+```ts
+import { Test, TestingModule } from '@nestjs/testing';
+import { INestApplication } from '@nestjs/common';
+import * as request from 'supertest';
+import { App } from 'supertest/types';
+import { AppModule } from './../src/app.module';
+
+describe('AppController (e2e)', () => {
+  let app: INestApplication<App>;
+
+  beforeEach(async () => {
+    const moduleFixture: TestingModule = await Test.createTestingModule({
+      imports: [AppModule],
+    }).compile();
+
+    app = moduleFixture.createNestApplication();
+    await app.init();
+  });
+
+  it('/ (GET)', () => {
+    return request(app.getHttpServer())
+      .get('/')
+      .expect(200)
+      .expect('Hello World!');
+  });
+});
+
+```

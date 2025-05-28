@@ -1,0 +1,4 @@
+-- AlterTable
+ALTER TABLE "Campaign" ADD COLUMN     "ethGoal" DECIMAL(20,8),
+ADD COLUMN     "raisedAmount" DECIMAL(20,2) NOT NULL DEFAULT 0,
+ALTER COLUMN "goal" SET DATA TYPE DECIMAL(20,2);

@@ -124,8 +124,8 @@ export abstract class BaseRepository<
       this.model.findMany({
         where,
         orderBy,
-        skip,
-        take: limit,
+        skip: Number(skip),
+        take: Number(limit),
         include,
       }),
       this.model.count({ where }),
@@ -135,8 +135,8 @@ export abstract class BaseRepository<
       data,
       meta: {
         total,
-        page,
-        limit,
+        page: Number(page),
+        limit: Number(limit),
       },
     };
   }

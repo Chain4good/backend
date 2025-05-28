@@ -18,7 +18,7 @@ enum ImageType {
   VIDEO
 }
 
-enum CampaignType {
+enum CampaignStatus {
   PENDING
   ACTIVE
   FINISHED
@@ -80,17 +80,18 @@ model User {
 model Campaign {
   id Int @id @default(autoincrement())
 
-  title        String
-  description  String
-  goal         Decimal      @db.Decimal(18, 2)
-  deadline     DateTime
-  totalDonated Decimal      @default(0) @db.Decimal(18, 2)
-  isClosed     Boolean      @default(false)
-  isNoLimit    Boolean      @default(false)
-  createdAt    DateTime     @default(now())
-  status       CampaignType @default(PENDING)
-  donations    Donation[]
-  comments     Comment[]
+  title           String
+  description     String
+  goal            Decimal        @db.Decimal(20, 2) // Store in VND
+  deadline        DateTime
+  totalDonated    Decimal        @default(0) @db.Decimal(18, 2)
+  isClosed        Boolean        @default(false)
+  isNoLimit       Boolean        @default(false)
+  createdAt       DateTime       @default(now())
+  status          CampaignStatus @default(PENDING)
+  donations       Donation[]
+  comments        Comment[]
+  chainCampaignId Int?
 
   userId          Int
   user            User           @relation(fields: [userId], references: [id])
@@ -103,7 +104,10 @@ model Campaign {
   coverId         Int
   cover           Cover?         @relation(fields: [coverId], references: [id])
   images          Image[]
-  Report          Report[]
+  reports         Report[]
+
+  raisedAmount Decimal  @default(0) @db.Decimal(20, 2) // Store in VND
+  ethGoal      Decimal? @db.Decimal(20, 8) // Optional ETH equivalent
 }
 
 model Cover {
