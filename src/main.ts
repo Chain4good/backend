@@ -14,6 +14,7 @@ async function bootstrap() {
       'http://localhost:5173',
       'http://127.0.0.1:5173',
       'http://192.168.1.26:5173',
+      'http://185.200.65.252',
       // Add your production domain when deploying
     ],
     credentials: true,
