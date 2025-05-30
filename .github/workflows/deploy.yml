@@ -35,5 +35,5 @@ jobs:
           script: |
             cd ~/charity
             docker pull ${{ secrets.DOCKER_USERNAME }}/charity-api:latest
-            docker-compose down
-            docker-compose up -d
+            docker compose down
+            docker compose up -d
