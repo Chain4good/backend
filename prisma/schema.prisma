@@ -66,6 +66,7 @@ model User {
   address     String  @unique
   bio         String?
   image       String?
+  cover       String?
 
   roleId    Int
   role      Role       @relation(fields: [roleId], references: [id])
@@ -76,6 +77,8 @@ model User {
   comments  Comment[]
   reports   Report[]
   likes     Like[]
+
+  refreshTokens RefreshToken[]
 }
 
 model Campaign {
@@ -198,4 +201,15 @@ model Like {
   comment   Comment @relation(fields: [commentId], references: [id], onDelete: Cascade)
 
   @@unique([userId, commentId])
+}
+
+model RefreshToken {
+  id        Int      @id @default(autoincrement())
+  token     String   @unique
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId])
 }

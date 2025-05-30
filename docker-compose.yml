@@ -1,0 +1,21 @@
+version: '3.8'
+
+services:
+  api:
+    container_name: charity-api
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - '3000:3000'
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=${DATABASE_URL}
+      # Add other environment variables
+    restart: always
+    networks:
+      - charity-network
+
+networks:
+  charity-network:
+    driver: bridge

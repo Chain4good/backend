@@ -2,6 +2,7 @@ import { ConflictException, Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { Prisma, User } from '@prisma/client';
 import { UserRegisterDTO } from 'src/auth/dtos/user-register.dto';
+import { UpdateUserDto } from './dto/update-user.dto';
 
 @Injectable()
 export class UsersService {
@@ -42,5 +43,11 @@ export class UsersService {
       }
       throw error;
     }
+  }
+  async update(id: number, data: UpdateUserDto) {
+    return this.prisma.user.update({
+      where: { id },
+      data,
+    });
   }
 }

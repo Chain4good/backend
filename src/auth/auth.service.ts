@@ -1,14 +1,16 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { UsersService } from '../users/users.service';
 import { UserRegisterDTO } from './dtos/user-register.dto';
+import { RefreshTokenService } from './refresh-token.service';
 
 @Injectable()
 export class AuthService {
   constructor(
     private usersService: UsersService,
     private jwtService: JwtService,
+    private refreshTokenService: RefreshTokenService,
   ) {}
 
   async validateUser(email: string, password: string): Promise<any> {
@@ -21,12 +23,38 @@ export class AuthService {
     return null;
   }
 
-  login(user: { email: string; id: number }) {
+  async login(user: { email: string; id: number }) {
     const payload = { email: user.email, sub: user.id };
+    const accessToken = this.jwtService.sign(payload);
+
+    const refreshToken = await this.refreshTokenService.createRefreshToken(
+      user.id,
+    );
+
     return {
-      access_token: this.jwtService.sign(payload),
       user,
+      access_token: accessToken,
+      refresh_token: refreshToken,
     };
+  }
+
+  async refreshAccessToken(refreshToken: string) {
+    const user =
+      await this.refreshTokenService.validateRefreshToken(refreshToken);
+    if (!user) {
+      throw new UnauthorizedException('Invalid refresh token');
+    }
+
+    const payload = { email: user.email, sub: user.id };
+    const accessToken = this.jwtService.sign(payload);
+
+    return {
+      access_token: accessToken,
+    };
+  }
+
+  async logout(refreshToken: string) {
+    await this.refreshTokenService.deleteRefreshToken(refreshToken);
   }
 
   async register(data: UserRegisterDTO) {

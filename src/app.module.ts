@@ -14,6 +14,7 @@ import { UploadModule } from './upload/upload.module';
 import { CategoryModule } from './category/category.module';
 import { MailerModule } from './mailer/mailer.module';
 import { DonationModule } from './donation/donation.module';
+import { CommentModule } from './comment/comment.module';
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { DonationModule } from './donation/donation.module';
     CountryModule,
     MailerModule,
     DonationModule,
+    CommentModule,
   ],
   controllers: [AppController],
   providers: [AppService],
