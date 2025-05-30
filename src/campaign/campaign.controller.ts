@@ -15,7 +15,6 @@ import { UpdateCampaignDto } from './dto/update-campaign.dto';
 import { GetUser, UserExtract } from 'src/auth/decorators/auth.decorators';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { CampaignStatus } from '@prisma/client';
-import { AuthGuard } from '@nestjs/passport';
 
 @Controller('campaigns')
 export class CampaignController {
@@ -72,6 +71,11 @@ export class CampaignController {
     return this.campaignService.findMyCampaigns(user.id, page, limit);
   }
 
+  @Get('calculate-eth-goal')
+  calculateEthGoal(@Query('vndAmount') vndAmount: number) {
+    return this.campaignService.calculateEthGoal(vndAmount);
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.campaignService.findOne(+id);
@@ -82,6 +86,8 @@ export class CampaignController {
     @Param('id') id: string,
     @Body() updateCampaignDto: UpdateCampaignDto,
   ) {
+    console.log(updateCampaignDto);
+
     return this.campaignService.update(+id, updateCampaignDto);
   }
 

@@ -74,7 +74,8 @@ model User {
   campaigns Campaign[]
   donations Donation[]
   comments  Comment[]
-  Report    Report[]
+  reports   Report[]
+  likes     Like[]
 }
 
 model Campaign {
@@ -92,6 +93,9 @@ model Campaign {
   donations       Donation[]
   comments        Comment[]
   chainCampaignId Int?
+  txHash          String? // ✅ hash giao dịch tạo contract
+  creatorAddress  String? // ✅ ví người tạo trên chain
+  tokenAddress    String? // ✅ address token nếu dùng ERC20
 
   userId          Int
   user            User           @relation(fields: [userId], references: [id])
@@ -128,9 +132,12 @@ model Image {
 }
 
 model Donation {
-  id        Int      @id @default(autoincrement())
-  donatedAt DateTime @default(now())
-  amount    Decimal  @db.Decimal(18, 2)
+  id               Int      @id @default(autoincrement())
+  donatedAt        DateTime @default(now())
+  amount           Decimal  @db.Decimal(18, 2)
+  onChainDonatedId Int?
+  txHash           String?
+  address          String?
 
   user       User     @relation(fields: [userId], references: [id])
   userId     Int
@@ -162,6 +169,7 @@ model Comment {
 
   campaignId Int
   campaign   Campaign @relation(fields: [campaignId], references: [id])
+  Like       Like[]
 
   @@map("comments")
 }
@@ -177,4 +185,17 @@ model Report {
   campaign   Campaign     @relation(fields: [campaignId], references: [id])
   userId     Int?
   user       User?        @relation(fields: [userId], references: [id])
+}
+
+model Like {
+  id        Int      @id @default(autoincrement())
+  createdAt DateTime @default(now())
+
+  userId Int
+  user   User @relation(fields: [userId], references: [id])
+
+  commentId Int
+  comment   Comment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, commentId])
 }

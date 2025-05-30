@@ -169,24 +169,35 @@ export class CampaignService {
     });
   }
 
-  update(id: number, updateCampaignDto: UpdateCampaignDto) {
-    // return this.campaignRepo.update(id, updateCampaignDto);
+  async update(id: number, updateCampaignDto: UpdateCampaignDto) {
+    const { images, ...rest } = updateCampaignDto;
+
+    const data: any = { ...rest };
+
+    if (images && images.length > 0) {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+      data.images = {
+        connect: images.map((id) => ({ id: Number(id) })),
+      };
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+    return this.campaignRepo.update(id, data);
   }
 
   remove(id: number) {
     return this.campaignRepo.delete(id);
   }
 
-  async calculateEthGoal(usdAmount: number): Promise<number> {
-    // Add integration with an ETH price oracle service
-    const ethPrice = await this.getEthPrice(); // USD/ETH
-    return usdAmount / ethPrice;
+  async calculateEthGoal(vndAmount: number): Promise<number> {
+    const ethPrice = await this.getEthPrice(); // VND / ETH
+    return vndAmount / ethPrice;
   }
 
   private async getEthPrice(): Promise<number> {
     try {
       const response = await fetch(
-        'https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd',
+        'https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=vnd',
       );
       const data = await response.json();
       // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access

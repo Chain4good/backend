@@ -62,4 +62,20 @@ export class CreateCampaignDto {
   @IsInt()
   @IsNotEmpty()
   coverId: number;
+
+  @IsInt()
+  @IsOptional()
+  chainCampaignId: number;
+
+  @IsString()
+  @IsOptional()
+  txHash: string;
+
+  @IsString()
+  @IsOptional()
+  creatorAddress: string;
+
+  @IsString()
+  @IsOptional()
+  tokenAddress: string;
 }

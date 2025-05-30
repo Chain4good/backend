@@ -13,6 +13,7 @@ import { ImageModule } from './image/image.module';
 import { UploadModule } from './upload/upload.module';
 import { CategoryModule } from './category/category.module';
 import { MailerModule } from './mailer/mailer.module';
+import { DonationModule } from './donation/donation.module';
 
 @Module({
   imports: [
@@ -30,6 +31,7 @@ import { MailerModule } from './mailer/mailer.module';
     CategoryModule,
     CountryModule,
     MailerModule,
+    DonationModule,
   ],
   controllers: [AppController],
   providers: [AppService],
