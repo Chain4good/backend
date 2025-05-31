@@ -15,6 +15,7 @@ import { CategoryModule } from './category/category.module';
 import { MailerModule } from './mailer/mailer.module';
 import { DonationModule } from './donation/donation.module';
 import { CommentModule } from './comment/comment.module';
+import { AiModule } from './ai/ai.module';
 
 @Module({
   imports: [
@@ -34,6 +35,8 @@ import { CommentModule } from './comment/comment.module';
     MailerModule,
     DonationModule,
     CommentModule,
+    AiModule,
+    AiModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -50,4 +50,16 @@ export class MailerService {
       },
     });
   }
+
+  async sendCustomThankYouEmail(
+    email: string,
+    subject: string,
+    content: string,
+  ) {
+    await this.mailerService.sendMail({
+      to: email,
+      subject,
+      html: content,
+    });
+  }
 }

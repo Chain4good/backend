@@ -6,12 +6,16 @@ import { UpdateCampaignDto } from './dto/update-campaign.dto';
 import { CampaignRepo } from './campaign.repository';
 import { MailerService } from '../mailer/mailer.service';
 import { CampaignStatus, Prisma } from '@prisma/client';
+import { AiService } from 'src/ai/ai.service';
+import { DonationService } from 'src/donation/donation.service';
 
 @Injectable()
 export class CampaignService {
   constructor(
     private readonly campaignRepo: CampaignRepo,
     private readonly mailerService: MailerService,
+    private readonly aiService: AiService,
+    private readonly donationService: DonationService,
   ) {}
 
   async create(
@@ -28,6 +32,9 @@ export class CampaignService {
         email,
         ...rest
       } = createCampaignDto;
+
+      const ethGoal = await this.calculateEthGoal(rest.goal);
+
       const campaign = await this.campaignRepo.create(
         {
           ...rest,
@@ -40,6 +47,7 @@ export class CampaignService {
           cover: { connect: { id: coverId } },
           fundraiseType: { connect: { id: fundraiseTypeId } },
           deadline: new Date(rest.deadline),
+          ethGoal,
         },
         {
           user: true,
@@ -65,6 +73,7 @@ export class CampaignService {
     sortBy: string = 'createdAt',
     categoryId?: number,
     fundraiseTypeId?: number,
+    countryId?: number,
   ) {
     const where: Prisma.CampaignWhereInput = {
       ...(userId && { userId: Number(userId) }),
@@ -72,6 +81,7 @@ export class CampaignService {
       ...(status && { status: status }),
       ...(categoryId && { categoryId: Number(categoryId) }),
       ...(fundraiseTypeId && { fundraiseTypeId: Number(fundraiseTypeId) }),
+      ...(countryId && { countryId: Number(countryId) }),
       ...(search && {
         OR: [
           {
@@ -112,6 +122,12 @@ export class CampaignService {
         cover: true,
         images: true,
         fundraiseType: true,
+        // donations: {}
+        _count: {
+          select: {
+            donations: true,
+          },
+        },
       },
     });
   }
@@ -172,16 +188,53 @@ export class CampaignService {
   async update(id: number, updateCampaignDto: UpdateCampaignDto) {
     const { images, ...rest } = updateCampaignDto;
 
-    const data: any = { ...rest };
+    const data: Prisma.CampaignUpdateInput = {
+      ...rest,
+      ...(images && images.length > 0
+        ? {
+            images: {
+              connect: images.map((id) => ({ id: Number(id) })),
+            },
+          }
+        : {}),
+    };
 
-    if (images && images.length > 0) {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-      data.images = {
-        connect: images.map((id) => ({ id: Number(id) })),
-      };
+    if (updateCampaignDto.status === 'FINISHED') {
+      const campaign = await this.campaignRepo.findOne(id);
+      if (!campaign) {
+        throw new Error('Campaign not found');
+      }
+      const donations =
+        await this.donationService.findAllUserDonationByCampaignId(id);
+      if (donations.length === 0) {
+        throw new Error('No donations found');
+      }
+      const aiContent = await this.aiService.generateThankYouLetter(
+        campaign.title,
+      );
+      await Promise.all(
+        donations.map(async (donation) => {
+          if (donation.user?.name || donation.user?.email) {
+            try {
+              if (
+                donation.user.email &&
+                aiContent.subject &&
+                aiContent.content
+              ) {
+                await this.mailerService.sendCustomThankYouEmail(
+                  donation.user.email,
+                  aiContent.subject,
+                  aiContent.content,
+                );
+              }
+            } catch (error) {
+              console.error('Failed to generate thank you letter:', error);
+            }
+          }
+        }),
+      );
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
     return this.campaignRepo.update(id, data);
   }
 
@@ -190,7 +243,7 @@ export class CampaignService {
   }
 
   async calculateEthGoal(vndAmount: number): Promise<number> {
-    const ethPrice = await this.getEthPrice(); // VND / ETH
+    const ethPrice = await this.getEthPrice();
     return vndAmount / ethPrice;
   }
 

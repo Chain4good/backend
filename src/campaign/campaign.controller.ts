@@ -46,6 +46,7 @@ export class CampaignController {
     @Query('sortBy') sortBy: string,
     @Query('categoryId') categoryId: number,
     @Query('fundraiseTypeId') fundraiseTypeId: number,
+    @Query('countryId') countryId: number,
   ) {
     return this.campaignService.findAll(
       userId,
@@ -58,6 +59,7 @@ export class CampaignController {
       sortBy,
       categoryId,
       fundraiseTypeId,
+      countryId,
     );
   }
 

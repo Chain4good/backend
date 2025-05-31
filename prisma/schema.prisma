@@ -88,7 +88,7 @@ model Campaign {
   description     String
   goal            Decimal        @db.Decimal(20, 2) // Store in VND
   deadline        DateTime
-  totalDonated    Decimal        @default(0) @db.Decimal(18, 2)
+  totalDonated    Decimal        @default(0) @db.Decimal(18, 8)
   isClosed        Boolean        @default(false)
   isNoLimit       Boolean        @default(false)
   createdAt       DateTime       @default(now())
@@ -146,8 +146,6 @@ model Donation {
   userId     Int
   campaignId Int
   campaign   Campaign @relation(fields: [campaignId], references: [id])
-
-  @@unique([userId, campaignId])
 }
 
 model Category {

@@ -16,4 +16,13 @@ export class DonationRepo extends BaseRepository<
   constructor(protected readonly prisma: PrismaService) {
     super();
   }
+  findAll<T extends Prisma.DonationInclude>(params: {
+    where?: Prisma.DonationWhereInput;
+    include?: T;
+  }) {
+    return this.prisma.donation.findMany({
+      where: params.where,
+      include: params.include,
+    }) as Promise<Prisma.DonationGetPayload<{ include: T }>[]>;
+  }
 }
