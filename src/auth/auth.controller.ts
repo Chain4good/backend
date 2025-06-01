@@ -34,8 +34,8 @@ export class AuthController {
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       path: '/',
-      // maxAge: 1 * 60 * 60 * 1000, // 1 hour
-      maxAge: 30 * 1000, // 30 second
+      maxAge: 1 * 60 * 60 * 1000, // 1 hour
+      // maxAge: 30 * 1000, // 30 second
     });
 
     res.cookie('refresh_token', refresh_token, {

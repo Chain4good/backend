@@ -79,6 +79,7 @@ model User {
   likes     Like[]
 
   refreshTokens RefreshToken[]
+  Notification  Notification[]
 }
 
 model Campaign {
@@ -210,4 +211,15 @@ model RefreshToken {
   createdAt DateTime @default(now())
 
   @@index([userId])
+}
+
+model Notification {
+  id        Int      @id @default(autoincrement())
+  type      String
+  content   String
+  metadata  Json?
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id])
 }

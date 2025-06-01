@@ -35,12 +35,24 @@ backend/
 │   │   │   └── migration.sql
 │   │   ├── 20250530120806_add_cover_col_user/
 │   │   │   └── migration.sql
+│   │   ├── 20250531085325_remove_unique_constraint_donation/
+│   │   │   └── migration.sql
+│   │   ├── 20250531090050_add_col_goal_eth_campaign_model/
+│   │   │   └── migration.sql
+│   │   ├── 20250531090754_remove_col_campaign/
+│   │   │   └── migration.sql
+│   │   ├── 20250531091250_update_col_total_donated/
+│   │   │   └── migration.sql
+│   │   ├── 20250531163344_add_notifications/
+│   │   │   └── migration.sql
 │   │   └── migration_lock.toml
 │   └── schema.prisma
 ├── src/
 │   ├── ai/
 │   │   ├── dto/
 │   │   │   └── analyze-campaign.dto.ts
+│   │   ├── types/
+│   │   │   └── thank-you-letter.type.ts
 │   │   ├── ai.controller.ts
 │   │   ├── ai.module.ts
 │   │   └── ai.service.ts
@@ -121,6 +133,8 @@ backend/
 │   │   │   └── update-donation.dto.ts
 │   │   ├── entities/
 │   │   │   └── donation.entity.ts
+│   │   ├── use-cases/
+│   │   │   └── create-donation.use-case.ts
 │   │   ├── donation.controller.ts
 │   │   ├── donation.module.ts
 │   │   ├── donation.repository.ts
@@ -148,6 +162,19 @@ backend/
 │   ├── mailer/
 │   │   ├── mailer.module.ts
 │   │   └── mailer.service.ts
+│   ├── notification/
+│   │   ├── dto/
+│   │   │   ├── create-notification.dto.ts
+│   │   │   └── update-notification.dto.ts
+│   │   ├── mappers/
+│   │   │   └── notification.mapper.ts
+│   │   ├── types/
+│   │   │   └── notification.types.ts
+│   │   ├── notification.controller.ts
+│   │   ├── notification.gateway.ts
+│   │   ├── notification.module.ts
+│   │   ├── notification.repository.ts
+│   │   └── notification.service.ts
 │   ├── prisma/
 │   │   ├── prisma.module.ts
 │   │   └── prisma.service.ts
@@ -296,6 +323,7 @@ import { MailerModule } from './mailer/mailer.module';
 import { DonationModule } from './donation/donation.module';
 import { CommentModule } from './comment/comment.module';
 import { AiModule } from './ai/ai.module';
+import { NotificationModule } from './notification/notification.module';
 
 @Module({
   imports: [
@@ -316,7 +344,7 @@ import { AiModule } from './ai/ai.module';
     DonationModule,
     CommentModule,
     AiModule,
-    AiModule,
+    NotificationModule,
   ],
   controllers: [AppController],
   providers: [AppService],
@@ -384,6 +412,8 @@ async function bootstrap() {
       'http://127.0.0.1:5173',
       'http://192.168.1.26:5173',
       'http://185.200.65.252',
+      'http://chain4good.io.vn',
+      'https://chain4good.io.vn',
       // Add your production domain when deploying
     ],
     credentials: true,
@@ -437,8 +467,8 @@ export class AuthController {
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       path: '/',
-      // maxAge: 1 * 60 * 60 * 1000, // 1 hour
-      maxAge: 30 * 1000, // 30 second
+      maxAge: 1 * 60 * 60 * 1000, // 1 hour
+      // maxAge: 30 * 1000, // 30 second
     });
 
     res.cookie('refresh_token', refresh_token, {
@@ -848,20 +878,35 @@ export class DonationRepo extends BaseRepository<
   constructor(protected readonly prisma: PrismaService) {
     super();
   }
+  findAll<T extends Prisma.DonationInclude>(params: {
+    where?: Prisma.DonationWhereInput;
+    include?: T;
+  }) {
+    return this.prisma.donation.findMany({
+      where: params.where,
+      include: params.include,
+    }) as Promise<Prisma.DonationGetPayload<{ include: T }>[]>;
+  }
 }
 
 ```
 
 ### src/donation/donation.module.ts
 ```ts
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
+import { CampaignModule } from '../campaign/campaign.module';
+import { DonationRepo } from './donation.repository';
 import { DonationService } from './donation.service';
 import { DonationController } from './donation.controller';
-import { DonationRepo } from './donation.repository';
+import { CreateDonationUseCase } from './use-cases/create-donation.use-case';
+import { UsersModule } from '../users/users.module';
+import { NotificationModule } from '../notification/notification.module';
 
 @Module({
+  imports: [forwardRef(() => CampaignModule), UsersModule, NotificationModule],
   controllers: [DonationController],
-  providers: [DonationService, DonationRepo],
+  providers: [DonationService, DonationRepo, CreateDonationUseCase],
+  exports: [DonationService],
 })
 export class DonationModule {}
 
@@ -929,31 +974,53 @@ export class DonationController {
 
 ### src/donation/donation.service.ts
 ```ts
-import { Injectable } from '@nestjs/common';
+import { Injectable, Inject, forwardRef } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
+import { CampaignService } from 'src/campaign/campaign.service';
+import { UsersService } from 'src/users/users.service';
+import { NotificationService } from 'src/notification/notification.service';
+import { DonationRepo } from './donation.repository';
 import { CreateDonationDto } from './dto/create-donation.dto';
 import { UpdateDonationDto } from './dto/update-donation.dto';
-import { DonationRepo } from './donation.repository';
+import { CreateDonationUseCase } from './use-cases/create-donation.use-case';
+
+type DonationWithUser = Prisma.DonationGetPayload<{
+  include: {
+    user: {
+      select: {
+        id: true;
+        name: true;
+        email: true;
+      };
+    };
+  };
+}>;
 
 @Injectable()
 export class DonationService {
-  constructor(private readonly donationRepo: DonationRepo) {}
+  constructor(
+    private readonly donationRepo: DonationRepo,
+    private readonly createDonationUseCase: CreateDonationUseCase,
+    @Inject(forwardRef(() => CampaignService))
+    private readonly campaignService: CampaignService,
+    private readonly userService: UsersService,
+    private readonly notificationService: NotificationService,
+  ) {}
 
-  create(createDonationDto: CreateDonationDto & { userId: number }) {
-    const { userId, campaignId, ...rest } = createDonationDto;
-
-    return this.donationRepo.create({
-      ...rest,
-      user: {
-        connect: { id: userId },
-      },
-      campaign: {
-        connect: { id: campaignId },
-      },
-    });
+  async create(createDonationDto: CreateDonationDto & { userId: number }) {
+    const donation =
+      await this.createDonationUseCase.execute(createDonationDto);
+    const campaign = await this.campaignService.findOne(
+      createDonationDto.campaignId,
+    );
+    if (!campaign) throw new Error('Campaign not found');
+    const user = await this.userService.findById(createDonationDto.userId);
+    if (!user) throw new Error('User not found');
+    return donation;
   }
 
   findAll() {
-    return this.donationRepo.findAll();
+    return this.donationRepo.findAll({});
   }
 
   findOne(id: number) {
@@ -966,6 +1033,25 @@ export class DonationService {
 
   remove(id: number) {
     return this.donationRepo.delete(id);
+  }
+
+  async findAllUserDonationByCampaignId(
+    campaignId: number,
+  ): Promise<DonationWithUser[]> {
+    return this.donationRepo.findAll({
+      where: {
+        campaignId,
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+      },
+    });
   }
 }
 
@@ -1020,14 +1106,65 @@ export class CreateDonationDto {
 
 ```
 
+### src/donation/use-cases/create-donation.use-case.ts
+```ts
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
+import {
+  Injectable,
+  Inject,
+  forwardRef,
+  ConflictException,
+} from '@nestjs/common';
+import { DonationRepo } from '../donation.repository';
+import { CampaignService } from '../../campaign/campaign.service';
+import { CreateDonationDto } from '../dto/create-donation.dto';
+import { Prisma } from '@prisma/client';
+
+@Injectable()
+export class CreateDonationUseCase {
+  constructor(
+    private readonly donationRepo: DonationRepo,
+    @Inject(forwardRef(() => CampaignService))
+    private readonly campaignService: CampaignService,
+  ) {}
+
+  async execute(createDonationDto: CreateDonationDto & { userId: number }) {
+    const { userId, campaignId, ...rest } = createDonationDto;
+
+    const donation = await this.donationRepo.create({
+      ...rest,
+      user: {
+        connect: { id: userId },
+      },
+      campaign: {
+        connect: { id: campaignId },
+      },
+    });
+
+    await this.campaignService.update(campaignId, {
+      totalDonated: {
+        increment: rest.amount,
+      },
+    } as any);
+
+    return donation;
+  }
+}
+
+```
+
 ### src/comment/comment.module.ts
 ```ts
 import { Module } from '@nestjs/common';
 import { CommentService } from './comment.service';
 import { CommentController } from './comment.controller';
 import { CommentRepo } from './comment.repository';
+import { CampaignModule } from 'src/campaign/campaign.module';
+import { NotificationModule } from 'src/notification/notification.module';
+import { UsersModule } from 'src/users/users.module';
 
 @Module({
+  imports: [CampaignModule, NotificationModule, UsersModule],
   controllers: [CommentController],
   providers: [CommentService, CommentRepo],
 })
@@ -1111,12 +1248,21 @@ export class CommentController {
 ### src/comment/comment.service.ts
 ```ts
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { CampaignService } from 'src/campaign/campaign.service';
+import { NotificationService } from 'src/notification/notification.service';
+import { NotificationType } from 'src/notification/types/notification.types';
 import { CommentRepo } from './comment.repository';
 import { CreateCommentDto } from './dto/create-comment.dto';
+import { UsersService } from 'src/users/users.service';
 
 @Injectable()
 export class CommentService {
-  constructor(private readonly commentRepo: CommentRepo) {}
+  constructor(
+    private readonly commentRepo: CommentRepo,
+    private readonly notificationService: NotificationService,
+    private readonly campaignService: CampaignService,
+    private readonly userService: UsersService,
+  ) {}
 
   async create(createCommentDto: CreateCommentDto & { userId: number }) {
     const { userId, campaignId, parentId, ...rest } = createCommentDto;
@@ -1128,12 +1274,56 @@ export class CommentService {
       }
     }
 
-    return this.commentRepo.create({
+    const comment = await this.commentRepo.create({
       ...rest,
       user: { connect: { id: userId } },
       campaign: { connect: { id: campaignId } },
       ...(parentId && { parent: { connect: { id: parentId } } }),
     });
+
+    const campaign = await this.campaignService.findOne(campaignId);
+    if (!campaign) throw new Error('Campaign not found');
+
+    if (parentId) {
+      const parentComment = await this.commentRepo.findOne(parentId, {
+        user: true,
+      });
+      if (!parentComment) {
+        throw new NotFoundException('Parent comment not found');
+      }
+      const user = await this.userService.findById(parentComment?.userId);
+      if (!user) throw new Error('User not found');
+      if (parentComment && parentComment.userId !== userId) {
+        await this.notificationService.createAndSendNotification({
+          userId: parentComment.userId,
+          type: NotificationType.COMMENT_REPLY,
+          content: `<p><strong>${user.name}</strong> đã trả lời bình luận của bạn</p>`,
+          metadata: {
+            campaignTitle: campaign.title,
+            commentId: comment.id,
+            campaignId,
+            parentCommentId: parentId,
+            replierName: comment.userId,
+          },
+        });
+      }
+    } else {
+      if (campaign.userId !== userId) {
+        await this.notificationService.createAndSendNotification({
+          userId: campaign.userId,
+          type: NotificationType.COMMENT,
+          content: 'Có bình luận mới trong chiến dịch của bạn',
+          metadata: {
+            campaignTitle: campaign.title,
+            commentId: comment.id,
+            campaignId,
+            commenterName: comment.userId,
+          },
+        });
+      }
+    }
+
+    return comment;
   }
 
   async findByCampaign(campaignId: number) {
@@ -1233,6 +1423,385 @@ export class CreateCommentDto {
   @IsNumber()
   @IsOptional()
   parentId?: number;
+}
+
+```
+
+### src/notification/notification.controller.ts
+```ts
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  ParseIntPipe,
+  Patch,
+  Post,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
+import { GetUser, UserExtract } from '../auth/decorators/auth.decorators';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { NotificationService } from './notification.service';
+import {
+  NotificationEntity,
+  NotificationResponse,
+} from './types/notification.types';
+import { CreateNotificationDto } from './dto/create-notification.dto';
+
+@Controller('notifications')
+@UseGuards(JwtAuthGuard)
+export class NotificationController {
+  constructor(private readonly notificationService: NotificationService) {}
+  @Post('')
+  create(@Body() createNotificationDto: CreateNotificationDto) {
+    return this.notificationService.createAndSendNotification(
+      createNotificationDto,
+    );
+  }
+  @Get()
+  async getUserNotifications(
+    @GetUser() user: UserExtract,
+    @Query('page') page: number = 1,
+    @Query('limit') limit: number = 10,
+  ): Promise<NotificationResponse> {
+    return this.notificationService.getUserNotifications(user.id, page, limit);
+  }
+
+  @Patch(':id/read')
+  async markAsRead(
+    @Param('id', ParseIntPipe) id: number,
+  ): Promise<NotificationEntity> {
+    return this.notificationService.markAsRead(id);
+  }
+
+  @Patch('mark-all-read')
+  async markAllAsRead(@GetUser() user: UserExtract) {
+    return this.notificationService.markAllAsRead(user.id);
+  }
+
+  @Get('unread-count')
+  async getUnreadCount(@GetUser() user: UserExtract) {
+    return this.notificationService.getUnreadCount(user.id);
+  }
+}
+
+```
+
+### src/notification/notification.gateway.ts
+```ts
+import {
+  WebSocketGateway,
+  WebSocketServer,
+  OnGatewayConnection,
+  OnGatewayDisconnect,
+  SubscribeMessage,
+} from '@nestjs/websockets';
+import { Server, Socket } from 'socket.io';
+import { Injectable } from '@nestjs/common';
+import { NotificationEntity } from './types/notification.types';
+
+@Injectable()
+@WebSocketGateway({
+  cors: {
+    origin: '*',
+  },
+})
+export class NotificationGateway
+  implements OnGatewayConnection, OnGatewayDisconnect
+{
+  @WebSocketServer()
+  server: Server;
+
+  private userSockets: Map<number, string[]> = new Map();
+
+  handleConnection(client: Socket): void {
+    console.log(`Client connected: ${client.id}`);
+  }
+
+  @SubscribeMessage('join')
+  handleJoinRoom(
+    client: Socket,
+    userId: number,
+  ): { status: string; message: string } {
+    this.handleUserConnection(userId, client.id);
+    return { status: 'ok', message: 'Joined successfully' };
+  }
+
+  handleDisconnect(client: Socket): void {
+    console.log(`Client disconnected: ${client.id}`);
+    this.removeSocket(client.id);
+  }
+
+  private removeSocket(socketId: string): void {
+    this.userSockets.forEach((sockets, userId) => {
+      const index = sockets.indexOf(socketId);
+      if (index !== -1) {
+        sockets.splice(index, 1);
+        if (sockets.length === 0) {
+          this.userSockets.delete(userId);
+        }
+      }
+    });
+  }
+
+  handleUserConnection(userId: number, socketId: string): void {
+    if (!this.userSockets.has(userId)) {
+      this.userSockets.set(userId, []);
+    }
+    const sockets = this.userSockets.get(userId);
+    if (sockets && !sockets.includes(socketId)) {
+      sockets.push(socketId);
+    }
+  }
+
+  sendNotificationToUser(
+    userId: number,
+    notification: NotificationEntity,
+  ): void {
+    const userSocketIds = this.userSockets.get(userId);
+    if (userSocketIds?.length) {
+      userSocketIds.forEach((socketId) => {
+        this.server.to(socketId).emit('notification', notification);
+      });
+    }
+  }
+}
+
+```
+
+### src/notification/notification.repository.ts
+```ts
+import { Injectable } from '@nestjs/common';
+import { BaseRepository } from 'src/common/base.repository';
+import { Notification, Prisma } from '@prisma/client';
+import { PrismaService } from 'src/prisma/prisma.service';
+
+@Injectable()
+export class NotificationRepository extends BaseRepository<
+  Notification,
+  Prisma.NotificationWhereInput,
+  Prisma.NotificationCreateInput,
+  Prisma.NotificationUpdateInput,
+  Prisma.NotificationOrderByWithRelationInput,
+  Prisma.NotificationInclude
+> {
+  protected readonly modelName = 'Notification' as Prisma.ModelName;
+  constructor(protected readonly prisma: PrismaService) {
+    super();
+  }
+}
+
+```
+
+### src/notification/notification.service.ts
+```ts
+import { Injectable } from '@nestjs/common';
+import { NotificationRepository } from './notification.repository';
+import { NotificationMapper } from './mappers/notification.mapper';
+import { NotificationGateway } from './notification.gateway';
+import { CreateNotificationDto } from './dto/create-notification.dto';
+import {
+  NotificationResponse,
+  NotificationEntity,
+} from './types/notification.types';
+import { Prisma } from '@prisma/client';
+
+@Injectable()
+export class NotificationService {
+  constructor(
+    private readonly notificationRepo: NotificationRepository,
+    private readonly notificationGateway: NotificationGateway,
+  ) {}
+
+  async createAndSendNotification(
+    createNotificationDto: CreateNotificationDto,
+  ): Promise<NotificationEntity> {
+    const notification = await this.notificationRepo.create({
+      user: {
+        connect: {
+          id: createNotificationDto.userId,
+        },
+      },
+      type: createNotificationDto.type,
+      content: createNotificationDto.content,
+      metadata: createNotificationDto.metadata ?? Prisma.DbNull,
+      isRead: false,
+    });
+
+    const notificationEntity = NotificationMapper.toEntity(notification);
+
+    this.notificationGateway.sendNotificationToUser(
+      createNotificationDto.userId,
+      notificationEntity,
+    );
+
+    return notificationEntity;
+  }
+
+  async getUserNotifications(
+    userId: number,
+    page: number,
+    limit: number,
+  ): Promise<NotificationResponse> {
+    const result = await this.notificationRepo.paginate(page, limit, {
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return {
+      data: NotificationMapper.toEntities(result.data),
+      meta: result.meta,
+    };
+  }
+  async markAsRead(id: number): Promise<NotificationEntity> {
+    const updatedNotification = await this.notificationRepo.update(id, {
+      isRead: true,
+    });
+    return NotificationMapper.toEntity(updatedNotification);
+  }
+
+  async markAllAsRead(userId: number) {
+    return this.notificationRepo.updateMany({ userId }, { isRead: true });
+  }
+
+  async getUnreadCount(userId: number): Promise<number> {
+    return this.notificationRepo.count({
+      userId,
+      isRead: false,
+    });
+  }
+}
+
+```
+
+### src/notification/notification.module.ts
+```ts
+import { Module } from '@nestjs/common';
+import { NotificationService } from './notification.service';
+import { NotificationController } from './notification.controller';
+import { NotificationRepository } from './notification.repository';
+import { NotificationGateway } from './notification.gateway';
+import { PrismaModule } from '../prisma/prisma.module';
+
+@Module({
+  imports: [PrismaModule],
+  controllers: [NotificationController],
+  providers: [NotificationService, NotificationRepository, NotificationGateway],
+  exports: [NotificationService],
+})
+export class NotificationModule {}
+
+```
+
+### src/notification/types/notification.types.ts
+```ts
+export enum NotificationType {
+  DONATION = 'DONATION',
+  COMMENT_REPLY = 'COMMENT_REPLY',
+  COMMENT = 'COMMENT',
+  CAMPAIGN_UPDATE = 'CAMPAIGN_UPDATE',
+  CAMPAIGN_STATUS = 'CAMPAIGN_STATUS',
+}
+
+export interface NotificationMetadata {
+  campaignId?: number;
+  donationId?: number;
+  commentId?: number;
+  amount?: number;
+  donorName?: string;
+  replierName?: string;
+  status?: string;
+  [key: string]: any;
+}
+
+export interface NotificationEntity {
+  id: number;
+  type: NotificationType;
+  content: string;
+  metadata: NotificationMetadata | null;
+  isRead: boolean;
+  createdAt: Date;
+  userId: number;
+}
+
+export type NotificationResponse = {
+  data: NotificationEntity[];
+  meta: {
+    total: number;
+    page: number;
+    limit: number;
+  };
+};
+
+```
+
+### src/notification/dto/update-notification.dto.ts
+```ts
+export class UpdateNotificationDto {}
+
+```
+
+### src/notification/dto/create-notification.dto.ts
+```ts
+import {
+  IsNotEmpty,
+  IsNumber,
+  IsString,
+  IsEnum,
+  IsObject,
+  IsOptional,
+} from 'class-validator';
+import { NotificationType } from '../types/notification.types';
+
+export class CreateNotificationDto {
+  @IsNumber()
+  @IsNotEmpty()
+  userId: number;
+
+  @IsEnum(NotificationType)
+  @IsNotEmpty()
+  type: NotificationType;
+
+  @IsString()
+  @IsNotEmpty()
+  content: string;
+
+  @IsObject()
+  @IsOptional()
+  metadata?: Record<string, any>;
+}
+
+```
+
+### src/notification/mappers/notification.mapper.ts
+```ts
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+import { Notification } from '@prisma/client';
+import {
+  NotificationEntity,
+  NotificationMetadata,
+  NotificationType,
+} from '../types/notification.types';
+
+export class NotificationMapper {
+  static toEntity(notification: Notification): NotificationEntity {
+    return {
+      id: notification.id,
+      type: notification.type as NotificationType,
+      content: notification.content,
+      metadata: notification.metadata as NotificationMetadata | null,
+      isRead: notification.isRead,
+      createdAt: notification.createdAt,
+      userId: notification.userId,
+    };
+  }
+
+  static toEntities(notifications: Notification[]): NotificationEntity[] {
+    // eslint-disable-next-line @typescript-eslint/unbound-method
+    return notifications.map(this.toEntity);
+  }
 }
 
 ```
@@ -1468,6 +2037,10 @@ export abstract class BaseRepository<
       }) => Promise<T>;
       delete: (args: { where: { id: number } }) => Promise<T>;
       count: (args?: { where?: TWhereInput }) => Promise<number>;
+      updateMany: (args: {
+        where: TWhereInput;
+        data: TUpdateInput;
+      }) => Promise<T>;
     };
   }
 
@@ -1512,6 +2085,13 @@ export abstract class BaseRepository<
       where: { id },
       data,
       include,
+    });
+  }
+
+  async updateMany(where: TWhereInput, data: TUpdateInput): Promise<T> {
+    return this.model.updateMany({
+      where,
+      data,
     });
   }
 
@@ -1943,6 +2523,7 @@ import { AiController } from './ai.controller';
 @Module({
   providers: [AiService],
   controllers: [AiController],
+  exports: [AiService],
 })
 export class AiModule {}
 
@@ -1953,6 +2534,7 @@ export class AiModule {}
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import OpenAI from 'openai';
+import { ThankYouLetterResponse } from './types/thank-you-letter.type';
 
 @Injectable()
 export class AiService {
@@ -1983,6 +2565,66 @@ export class AiService {
     // eslint-disable-next-line @typescript-eslint/no-unsafe-return
     return JSON.parse(content || '{}');
   }
+
+  async generateThankYouLetter(
+    campaignName: string,
+  ): Promise<ThankYouLetterResponse> {
+    const prompt = `
+      Bạn là một chuyên gia thiết kế email marketing cao cấp. Hãy tạo một email cảm ơn chuyên nghiệp với các yêu cầu sau:
+
+      THÔNG TIN:
+      - Tên chiến dịch: "${campaignName}"
+
+      YÊU CẦU THIẾT KẾ:
+      - Sử dụng HTML5 và inline CSS
+      - Màu sắc: 
+        + Màu chủ đạo: #16A34A (xanh lá)
+        + Màu phụ: #F0FDF4 (nền nhạt)
+        + Màu accent: #166534 (nhấn mạnh)
+      - Font: 'Helvetica Neue', Arial, sans-serif
+      - Responsive design
+      - Có background pattern tinh tế
+      - Thêm icon trái tim hoặc bàn tay nắm lại phù hợp
+
+      NỘI DUNG:
+      - Độ dài: 100-150 từ
+      - Giọng điệu: Chân thành, ấm áp nhưng chuyên nghiệp
+      - Nhấn mạnh tác động tích cực của sự đóng góp
+      - Tránh klisê và từ ngữ sáo rỗng
+      - Kết thúc bằng lời mời tiếp tục đồng hành
+
+      Trả về JSON với định dạng:
+      {
+        "subject": "Tiêu đề email ngắn gọn, thu hút",
+        "content": "HTML template với đầy đủ styling (inline CSS)"
+      }
+    `;
+
+    const response = await this.openai.chat.completions.create({
+      model: 'gpt-4o',
+      messages: [{ role: 'user', content: prompt }],
+      response_format: { type: 'json_object' },
+    });
+
+    try {
+      const content = response.choices[0].message?.content;
+      if (!content) {
+        throw new Error('Empty response from OpenAI');
+      }
+
+      // Clean the response string of any control characters
+      // eslint-disable-next-line no-control-regex
+      const cleanContent = content.replace(/[\x00-\x1F\x7F-\x9F]/g, '');
+
+      return JSON.parse(cleanContent) as ThankYouLetterResponse;
+    } catch (error) {
+      console.error('Failed to parse AI response:', error);
+      return {
+        subject: 'Thank You for Your Support',
+        content: '<p>Thank you for your generous contribution.</p>',
+      };
+    }
+  }
 }
 
 ```
@@ -2002,6 +2644,15 @@ export class AiController {
     // eslint-disable-next-line @typescript-eslint/no-unsafe-return
     return this.aiService.analyzeCampaign(dto.title, dto.description);
   }
+}
+
+```
+
+### src/ai/types/thank-you-letter.type.ts
+```ts
+export interface ThankYouLetterResponse {
+  subject: string;
+  content: string;
 }
 
 ```
@@ -2220,7 +2871,8 @@ export class CreateFundraiseTypeDto {
 
 ### src/utils/string.ts
 ```ts
-export function toCamelCase(name: string) {
+export function toCamelCase(name: string | undefined) {
+  if (!name) return '';
   return name.charAt(0).toLowerCase() + name.slice(1);
 }
 
@@ -2395,6 +3047,18 @@ export class MailerService {
       context: {
         ...data,
       },
+    });
+  }
+
+  async sendCustomThankYouEmail(
+    email: string,
+    subject: string,
+    content: string,
+  ) {
+    await this.mailerService.sendMail({
+      to: email,
+      subject,
+      html: content,
     });
   }
 }
@@ -2789,6 +3453,7 @@ export class CampaignController {
     @Query('sortBy') sortBy: string,
     @Query('categoryId') categoryId: number,
     @Query('fundraiseTypeId') fundraiseTypeId: number,
+    @Query('countryId') countryId: number,
   ) {
     return this.campaignService.findAll(
       userId,
@@ -2801,6 +3466,7 @@ export class CampaignController {
       sortBy,
       categoryId,
       fundraiseTypeId,
+      countryId,
     );
   }
 
@@ -2852,12 +3518,16 @@ import { UpdateCampaignDto } from './dto/update-campaign.dto';
 import { CampaignRepo } from './campaign.repository';
 import { MailerService } from '../mailer/mailer.service';
 import { CampaignStatus, Prisma } from '@prisma/client';
+import { AiService } from 'src/ai/ai.service';
+import { DonationService } from 'src/donation/donation.service';
 
 @Injectable()
 export class CampaignService {
   constructor(
     private readonly campaignRepo: CampaignRepo,
     private readonly mailerService: MailerService,
+    private readonly aiService: AiService,
+    private readonly donationService: DonationService,
   ) {}
 
   async create(
@@ -2874,6 +3544,9 @@ export class CampaignService {
         email,
         ...rest
       } = createCampaignDto;
+
+      const ethGoal = await this.calculateEthGoal(rest.goal);
+
       const campaign = await this.campaignRepo.create(
         {
           ...rest,
@@ -2886,6 +3559,7 @@ export class CampaignService {
           cover: { connect: { id: coverId } },
           fundraiseType: { connect: { id: fundraiseTypeId } },
           deadline: new Date(rest.deadline),
+          ethGoal,
         },
         {
           user: true,
@@ -2911,6 +3585,7 @@ export class CampaignService {
     sortBy: string = 'createdAt',
     categoryId?: number,
     fundraiseTypeId?: number,
+    countryId?: number,
   ) {
     const where: Prisma.CampaignWhereInput = {
       ...(userId && { userId: Number(userId) }),
@@ -2918,6 +3593,7 @@ export class CampaignService {
       ...(status && { status: status }),
       ...(categoryId && { categoryId: Number(categoryId) }),
       ...(fundraiseTypeId && { fundraiseTypeId: Number(fundraiseTypeId) }),
+      ...(countryId && { countryId: Number(countryId) }),
       ...(search && {
         OR: [
           {
@@ -2958,6 +3634,12 @@ export class CampaignService {
         cover: true,
         images: true,
         fundraiseType: true,
+        // donations: {}
+        _count: {
+          select: {
+            donations: true,
+          },
+        },
       },
     });
   }
@@ -3018,16 +3700,53 @@ export class CampaignService {
   async update(id: number, updateCampaignDto: UpdateCampaignDto) {
     const { images, ...rest } = updateCampaignDto;
 
-    const data: any = { ...rest };
+    const data: Prisma.CampaignUpdateInput = {
+      ...rest,
+      ...(images && images.length > 0
+        ? {
+            images: {
+              connect: images.map((id) => ({ id: Number(id) })),
+            },
+          }
+        : {}),
+    };
 
-    if (images && images.length > 0) {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-      data.images = {
-        connect: images.map((id) => ({ id: Number(id) })),
-      };
+    if (updateCampaignDto.status === 'FINISHED') {
+      const campaign = await this.campaignRepo.findOne(id);
+      if (!campaign) {
+        throw new Error('Campaign not found');
+      }
+      const donations =
+        await this.donationService.findAllUserDonationByCampaignId(id);
+      if (donations.length === 0) {
+        throw new Error('No donations found');
+      }
+      const aiContent = await this.aiService.generateThankYouLetter(
+        campaign.title,
+      );
+      await Promise.all(
+        donations.map(async (donation) => {
+          if (donation.user?.name || donation.user?.email) {
+            try {
+              if (
+                donation.user.email &&
+                aiContent.subject &&
+                aiContent.content
+              ) {
+                await this.mailerService.sendCustomThankYouEmail(
+                  donation.user.email,
+                  aiContent.subject,
+                  aiContent.content,
+                );
+              }
+            } catch (error) {
+              console.error('Failed to generate thank you letter:', error);
+            }
+          }
+        }),
+      );
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
     return this.campaignRepo.update(id, data);
   }
 
@@ -3036,7 +3755,7 @@ export class CampaignService {
   }
 
   async calculateEthGoal(vndAmount: number): Promise<number> {
-    const ethPrice = await this.getEthPrice(); // VND / ETH
+    const ethPrice = await this.getEthPrice();
     return vndAmount / ethPrice;
   }
 
@@ -3059,16 +3778,19 @@ export class CampaignService {
 
 ### src/campaign/campaign.module.ts
 ```ts
-import { Module } from '@nestjs/common';
-import { CampaignService } from './campaign.service';
+import { Module, forwardRef } from '@nestjs/common';
 import { CampaignController } from './campaign.controller';
+import { CampaignService } from './campaign.service';
 import { CampaignRepo } from './campaign.repository';
 import { MailerModule } from '../mailer/mailer.module';
+import { AiModule } from '../ai/ai.module';
+import { DonationModule } from '../donation/donation.module';
 
 @Module({
-  imports: [MailerModule],
+  imports: [MailerModule, AiModule, forwardRef(() => DonationModule)],
   controllers: [CampaignController],
   providers: [CampaignService, CampaignRepo],
+  exports: [CampaignService],
 })
 export class CampaignModule {}
 

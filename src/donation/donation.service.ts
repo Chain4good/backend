@@ -1,5 +1,8 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Inject, forwardRef } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
+import { CampaignService } from 'src/campaign/campaign.service';
+import { UsersService } from 'src/users/users.service';
+import { NotificationService } from 'src/notification/notification.service';
 import { DonationRepo } from './donation.repository';
 import { CreateDonationDto } from './dto/create-donation.dto';
 import { UpdateDonationDto } from './dto/update-donation.dto';
@@ -22,10 +25,22 @@ export class DonationService {
   constructor(
     private readonly donationRepo: DonationRepo,
     private readonly createDonationUseCase: CreateDonationUseCase,
+    @Inject(forwardRef(() => CampaignService))
+    private readonly campaignService: CampaignService,
+    private readonly userService: UsersService,
+    private readonly notificationService: NotificationService,
   ) {}
 
-  create(createDonationDto: CreateDonationDto & { userId: number }) {
-    return this.createDonationUseCase.execute(createDonationDto);
+  async create(createDonationDto: CreateDonationDto & { userId: number }) {
+    const donation =
+      await this.createDonationUseCase.execute(createDonationDto);
+    const campaign = await this.campaignService.findOne(
+      createDonationDto.campaignId,
+    );
+    if (!campaign) throw new Error('Campaign not found');
+    const user = await this.userService.findById(createDonationDto.userId);
+    if (!user) throw new Error('User not found');
+    return donation;
   }
 
   findAll() {

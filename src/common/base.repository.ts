@@ -42,6 +42,10 @@ export abstract class BaseRepository<
       }) => Promise<T>;
       delete: (args: { where: { id: number } }) => Promise<T>;
       count: (args?: { where?: TWhereInput }) => Promise<number>;
+      updateMany: (args: {
+        where: TWhereInput;
+        data: TUpdateInput;
+      }) => Promise<T>;
     };
   }
 
@@ -86,6 +90,13 @@ export abstract class BaseRepository<
       where: { id },
       data,
       include,
+    });
+  }
+
+  async updateMany(where: TWhereInput, data: TUpdateInput): Promise<T> {
+    return this.model.updateMany({
+      where,
+      data,
     });
   }
 

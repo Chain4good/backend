@@ -16,6 +16,7 @@ import { MailerModule } from './mailer/mailer.module';
 import { DonationModule } from './donation/donation.module';
 import { CommentModule } from './comment/comment.module';
 import { AiModule } from './ai/ai.module';
+import { NotificationModule } from './notification/notification.module';
 
 @Module({
   imports: [
@@ -36,7 +37,7 @@ import { AiModule } from './ai/ai.module';
     DonationModule,
     CommentModule,
     AiModule,
-    AiModule,
+    NotificationModule,
   ],
   controllers: [AppController],
   providers: [AppService],
