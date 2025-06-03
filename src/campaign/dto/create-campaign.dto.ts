@@ -1,14 +1,15 @@
 // src/campaign/dto/create-campaign.dto.ts
 import { CampaignStatus } from '@prisma/client';
 import {
-  IsNotEmpty,
-  IsString,
-  IsOptional,
-  IsDateString,
-  IsNumber,
-  IsInt,
-  IsBoolean,
   IsArray,
+  IsBoolean,
+  IsDateString,
+  IsEnum,
+  IsInt,
+  IsNotEmpty,
+  IsNumber,
+  IsOptional,
+  IsString,
 } from 'class-validator';
 
 export class CreateCampaignDto {
@@ -39,10 +40,6 @@ export class CreateCampaignDto {
   @IsOptional()
   isNoLimit: boolean;
 
-  @IsString()
-  @IsOptional()
-  status: CampaignStatus;
-
   @IsInt()
   @IsNotEmpty()
   categoryId: number;
@@ -54,6 +51,10 @@ export class CreateCampaignDto {
   @IsArray()
   @IsNotEmpty()
   images: string[];
+
+  @IsOptional()
+  @IsEnum(CampaignStatus)
+  status?: CampaignStatus;
 
   @IsInt()
   @IsNotEmpty()

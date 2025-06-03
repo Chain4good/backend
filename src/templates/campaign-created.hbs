@@ -1,11 +1,104 @@
 <html>
   <head>
     <meta charset='utf-8' />
-    <title>Campaign Created</title>
+    <meta name='viewport' content='width=device-width, initial-scale=1.0' />
+    <title>Chiến Dịch Đã Được Tạo</title>
+    <style>
+      body {
+        font-family: 'Arial', sans-serif;
+        line-height: 1.6;
+        color: #333;
+        max-width: 600px;
+        margin: 0 auto;
+        padding: 20px;
+      }
+      .container {
+        background-color: #ffffff;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        padding: 30px;
+      }
+      .header {
+        text-align: center;
+        padding-bottom: 20px;
+        border-bottom: 2px solid #f0f0f0;
+        margin-bottom: 20px;
+      }
+      .logo {
+        max-width: 150px;
+        margin-bottom: 15px;
+      }
+      h1 {
+        color: #2c3e50;
+        font-size: 24px;
+        margin-bottom: 20px;
+      }
+      .campaign-name {
+        color: #3498db;
+        font-weight: bold;
+      }
+      .content {
+        margin-bottom: 30px;
+      }
+      .button {
+        display: inline-block;
+        padding: 12px 24px;
+        background-color: #3498db;
+        color: white;
+        text-decoration: none;
+        border-radius: 4px;
+        margin-top: 20px;
+      }
+      .footer {
+        text-align: center;
+        color: #7f8c8d;
+        font-size: 14px;
+        margin-top: 30px;
+        padding-top: 20px;
+        border-top: 1px solid #f0f0f0;
+      }
+    </style>
   </head>
   <body>
-    <h2>Campaign Created Successfully</h2>
-    <p>Your campaign "{{campaignName}}" has been created successfully.</p>
-    <p>You can now start sharing it with potential donors.</p>
+    <div class='container'>
+      <div class='header'>
+        <img
+          style='width: 100px'
+          src='https://chain4good.io.vn/logo.png'
+          alt='Logo'
+          class='logo'
+        />
+        <h1>🎉 Chiến Dịch Đã Được Tạo Thành Công! 🎉</h1>
+      </div>
+
+      <div class='content'>
+        <p>Xin chào,</p>
+
+        <p>Chúc mừng! 🌟 Chiến dịch "<span
+            class='campaign-name'
+          >{{campaignName}}</span>" của bạn đã được tạo thành công và đang hoạt
+          động trên nền tảng của chúng tôi.</p>
+
+        <p>Các bước tiếp theo:</p>
+        <ul>
+          <li>Chia sẻ chiến dịch với bạn bè và gia đình</li>
+          <li>Quảng bá trên mạng xã hội</li>
+          <li>Theo dõi tiến độ của chiến dịch</li>
+          <li>Tương tác với các nhà hảo tâm</li>
+        </ul>
+
+        <center>
+          <a href='https://chain4good.io.vn/fund/{{campaignId}}' class='button'>
+            Xem Chiến Dịch Của Bạn
+          </a>
+        </center>
+      </div>
+
+      <div class='footer'>
+        <p>Nếu bạn có bất kỳ câu hỏi nào, đừng ngần ngại liên hệ với đội ngũ hỗ
+          trợ của chúng tôi.</p>
+        <p>© 2025 Nền Tảng Từ Thiện. Đã đăng ký bản quyền.</p>
+      </div>
+    </div>
   </body>
 </html>

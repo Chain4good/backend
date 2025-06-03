@@ -5,13 +5,18 @@ import { MailerService as NestMailerService } from '@nestjs-modules/mailer';
 export class MailerService {
   constructor(private readonly mailerService: NestMailerService) {}
 
-  async sendCampaignCreated(email: string, campaignName: string) {
+  async sendCampaignCreated(
+    email: string,
+    campaignName: string,
+    campaignId: number,
+  ) {
     await this.mailerService.sendMail({
       to: email,
-      subject: 'Campaign Created Successfully',
-      template: 'campaign-created', // tên của template trong thư mục templates
+      subject: 'Chiến dịch tạo ra thành công',
+      template: 'campaign-created',
       context: {
         campaignName,
+        campaignId,
       },
     });
   }
@@ -60,6 +65,25 @@ export class MailerService {
       to: email,
       subject,
       html: content,
+    });
+  }
+
+  async sendCustomEmail(email: string, subject: string, content: string) {
+    await this.mailerService.sendMail({
+      to: email,
+      subject,
+      html: content,
+    });
+  }
+
+  async sendToAdminCampaignCreated(email: string, campaignName: string) {
+    await this.mailerService.sendMail({
+      to: email,
+      subject: 'Chiến dịch mới được tạo',
+      template: 'campaign-created-admin',
+      context: {
+        campaignName,
+      },
     });
   }
 }

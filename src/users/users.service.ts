@@ -3,10 +3,14 @@ import { PrismaService } from '../prisma/prisma.service';
 import { Prisma, User } from '@prisma/client';
 import { UserRegisterDTO } from 'src/auth/dtos/user-register.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { UserRepository } from './user.repository';
 
 @Injectable()
 export class UsersService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private readonly userRepository: UserRepository,
+  ) {}
 
   async findByEmail(email: string): Promise<User | null> {
     return this.prisma.user.findUnique({
@@ -48,6 +52,28 @@ export class UsersService {
     return this.prisma.user.update({
       where: { id },
       data,
+    });
+  }
+
+  async findAllByRole(roleId: number) {
+    return this.prisma.user.findMany({
+      where: { roleId },
+    });
+  }
+
+  async findAll(
+    page: number,
+    limit: number,
+    name: string,
+    email: string,
+    role: string,
+  ) {
+    return this.userRepository.paginate(page, limit, {
+      where: {
+        ...(name && { name: { contains: name, mode: 'insensitive' } }),
+        ...(email && { email: { contains: email, mode: 'insensitive' } }),
+        ...(role && { roleId: Number(role) }),
+      },
     });
   }
 }

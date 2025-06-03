@@ -37,7 +37,6 @@ export class NotificationGateway
   }
 
   handleDisconnect(client: Socket): void {
-    console.log(`Client disconnected: ${client.id}`);
     this.removeSocket(client.id);
   }
 

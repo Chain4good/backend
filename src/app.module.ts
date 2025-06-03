@@ -17,6 +17,7 @@ import { DonationModule } from './donation/donation.module';
 import { CommentModule } from './comment/comment.module';
 import { AiModule } from './ai/ai.module';
 import { NotificationModule } from './notification/notification.module';
+import { DashboardModule } from './dashboard/dashboard.module';
 
 @Module({
   imports: [
@@ -38,6 +39,7 @@ import { NotificationModule } from './notification/notification.module';
     CommentModule,
     AiModule,
     NotificationModule,
+    DashboardModule,
   ],
   controllers: [AppController],
   providers: [AppService],

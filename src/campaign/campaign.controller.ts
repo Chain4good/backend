@@ -1,20 +1,20 @@
 import {
-  Controller,
-  Get,
-  Post,
   Body,
-  Patch,
-  Param,
+  Controller,
   Delete,
-  UseGuards,
+  Get,
+  Param,
+  Patch,
+  Post,
   Query,
+  UseGuards,
 } from '@nestjs/common';
+import { CampaignStatus } from '@prisma/client';
+import { GetUser, UserExtract } from 'src/auth/decorators/auth.decorators';
+import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { CampaignService } from './campaign.service';
 import { CreateCampaignDto } from './dto/create-campaign.dto';
 import { UpdateCampaignDto } from './dto/update-campaign.dto';
-import { GetUser, UserExtract } from 'src/auth/decorators/auth.decorators';
-import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
-import { CampaignStatus } from '@prisma/client';
 
 @Controller('campaigns')
 export class CampaignController {
@@ -22,11 +22,11 @@ export class CampaignController {
 
   @Post()
   @UseGuards(JwtAuthGuard)
-  create(
+  async create(
     @Body() createCampaignDto: CreateCampaignDto,
     @GetUser() user: UserExtract,
   ) {
-    const campaign = this.campaignService.create({
+    const campaign = await this.campaignService.create({
       ...createCampaignDto,
       userId: user.id,
       email: user.email,
@@ -65,12 +65,20 @@ export class CampaignController {
 
   @Get('my-campaigns')
   @UseGuards(JwtAuthGuard)
-  findMyCampaigns(
+  async findMyCampaigns(
     @GetUser() user: UserExtract,
     @Query('page') page: number,
     @Query('limit') limit: number,
+    @Query('status') status: CampaignStatus,
   ) {
-    return this.campaignService.findMyCampaigns(user.id, page, limit);
+    const campaigns = await this.campaignService.findMyCampaigns(
+      user.id,
+      page,
+      limit,
+      status,
+    );
+
+    return campaigns;
   }
 
   @Get('calculate-eth-goal')
@@ -84,13 +92,12 @@ export class CampaignController {
   }
 
   @Patch(':id')
-  update(
+  async update(
     @Param('id') id: string,
     @Body() updateCampaignDto: UpdateCampaignDto,
   ) {
-    console.log(updateCampaignDto);
-
-    return this.campaignService.update(+id, updateCampaignDto);
+    const campaign = await this.campaignService.update(+id, updateCampaignDto);
+    return campaign;
   }
 
   @Delete(':id')

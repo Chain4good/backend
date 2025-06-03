@@ -8,6 +8,8 @@ import { MailerService } from '../mailer/mailer.service';
 import { CampaignStatus, Prisma } from '@prisma/client';
 import { AiService } from 'src/ai/ai.service';
 import { DonationService } from 'src/donation/donation.service';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import { CampaignCreatedEvent } from './events/campaign-created.event';
 
 @Injectable()
 export class CampaignService {
@@ -16,6 +18,7 @@ export class CampaignService {
     private readonly mailerService: MailerService,
     private readonly aiService: AiService,
     private readonly donationService: DonationService,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   async create(
@@ -53,7 +56,11 @@ export class CampaignService {
           user: true,
         },
       );
-      await this.mailerService.sendCampaignCreated(email, campaign.title);
+
+      this.eventEmitter.emit(
+        'campaign.created',
+        new CampaignCreatedEvent(campaign.title, email, campaign.id),
+      );
 
       return campaign;
     } catch (error) {
@@ -132,9 +139,14 @@ export class CampaignService {
     });
   }
 
-  findMyCampaigns(userId: number, page: number = 1, limit: number = 10) {
+  findMyCampaigns(
+    userId: number,
+    page: number = 1,
+    limit: number = 10,
+    status: CampaignStatus,
+  ) {
     return this.campaignRepo.paginate(page, limit, {
-      where: { userId },
+      where: { userId, ...(status && { status }) },
       include: {
         user: {
           select: {

@@ -13,10 +13,13 @@ async function bootstrap() {
     origin: [
       'http://localhost:5173',
       'http://127.0.0.1:5173',
+      'http://localhost:8080',
+      'http://127.0.0.1:8080',
       'http://192.168.1.26:5173',
       'http://185.200.65.252',
       'http://chain4good.io.vn',
       'https://chain4good.io.vn',
+      'https://admin.chain4good.io.vn',
       // Add your production domain when deploying
     ],
     credentials: true,

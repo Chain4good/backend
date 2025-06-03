@@ -19,9 +19,13 @@ enum ImageType {
 }
 
 enum CampaignStatus {
+  DRAFT
   PENDING
+  APPROVED
+  REJECTED
   ACTIVE
   FINISHED
+  CANCELLED
 }
 
 enum ReportStatus {
@@ -87,35 +91,35 @@ model Campaign {
 
   title           String
   description     String
-  goal            Decimal        @db.Decimal(20, 2) // Store in VND
+  goal            Decimal        @db.Decimal(20, 2)
   deadline        DateTime
   totalDonated    Decimal        @default(0) @db.Decimal(18, 8)
   isClosed        Boolean        @default(false)
   isNoLimit       Boolean        @default(false)
   createdAt       DateTime       @default(now())
   status          CampaignStatus @default(PENDING)
-  donations       Donation[]
-  comments        Comment[]
+  raisedAmount    Decimal        @default(0) @db.Decimal(20, 2)
   chainCampaignId Int?
-  txHash          String? // ✅ hash giao dịch tạo contract
-  creatorAddress  String? // ✅ ví người tạo trên chain
-  tokenAddress    String? // ✅ address token nếu dùng ERC20
-
+  txHash          String?
+  creatorAddress  String?
+  tokenAddress    String?
+  ethGoal         Decimal?       @db.Decimal(20, 8)
   userId          Int
-  user            User           @relation(fields: [userId], references: [id])
   categoryId      Int
-  category        Category       @relation(fields: [categoryId], references: [id])
   countryId       Int
-  country         Country        @relation(fields: [countryId], references: [id])
-  fundraiseType   FundraiseType? @relation(fields: [fundraiseTypeId], references: [id])
-  fundraiseTypeId Int?
   coverId         Int
-  cover           Cover?         @relation(fields: [coverId], references: [id])
-  images          Image[]
-  reports         Report[]
+  fundraiseTypeId Int?
 
-  raisedAmount Decimal  @default(0) @db.Decimal(20, 2) // Store in VND
-  ethGoal      Decimal? @db.Decimal(20, 8) // Optional ETH equivalent
+  category      Category       @relation(fields: [categoryId], references: [id])
+  user          User           @relation(fields: [userId], references: [id])
+  country       Country        @relation(fields: [countryId], references: [id])
+  fundraiseType FundraiseType? @relation(fields: [fundraiseTypeId], references: [id])
+  cover         Cover?         @relation(fields: [coverId], references: [id])
+
+  reports   Report[]
+  images    Image[]
+  donations Donation[]
+  comments  Comment[]
 }
 
 model Cover {
@@ -138,10 +142,11 @@ model Image {
 model Donation {
   id               Int      @id @default(autoincrement())
   donatedAt        DateTime @default(now())
-  amount           Decimal  @db.Decimal(18, 2)
+  amount           Decimal  @db.Decimal(18, 8)
   onChainDonatedId Int?
   txHash           String?
   address          String?
+  token            String?
 
   user       User     @relation(fields: [userId], references: [id])
   userId     Int

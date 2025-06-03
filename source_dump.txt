@@ -45,6 +45,8 @@ backend/
 │   │   │   └── migration.sql
 │   │   ├── 20250531163344_add_notifications/
 │   │   │   └── migration.sql
+│   │   ├── 20250601083337_add_campaign_approval_status/
+│   │   │   └── migration.sql
 │   │   └── migration_lock.toml
 │   └── schema.prisma
 ├── src/
@@ -78,6 +80,10 @@ backend/
 │   │   │   └── update-campaign.dto.ts
 │   │   ├── entities/
 │   │   │   └── campaign.entity.ts
+│   │   ├── events/
+│   │   │   └── campaign-created.event.ts
+│   │   ├── listeners/
+│   │   │   └── campaign-created.listener.ts
 │   │   ├── use-cases/
 │   │   │   └── create-campaign-with-images.use-case.ts
 │   │   ├── campaign.controller.ts
@@ -106,7 +112,8 @@ backend/
 │   │   │   └── all-exceptions.filter.ts
 │   │   └── base.repository.ts
 │   ├── config/
-│   │   └── mailer.config.ts
+│   │   ├── mailer.config.ts
+│   │   └── redis.config.ts
 │   ├── country/
 │   │   ├── dto/
 │   │   │   ├── create-country.dto.ts
@@ -180,6 +187,7 @@ backend/
 │   │   └── prisma.service.ts
 │   ├── providers/
 │   ├── templates/
+│   │   ├── campaign-created-admin.hbs
 │   │   └── campaign-created.hbs
 │   ├── upload/
 │   │   ├── cloudinary.provider.ts
@@ -324,6 +332,7 @@ import { DonationModule } from './donation/donation.module';
 import { CommentModule } from './comment/comment.module';
 import { AiModule } from './ai/ai.module';
 import { NotificationModule } from './notification/notification.module';
+import { RedisCacheModule } from './config/redis.config';
 
 @Module({
   imports: [
@@ -345,6 +354,7 @@ import { NotificationModule } from './notification/notification.module';
     CommentModule,
     AiModule,
     NotificationModule,
+    RedisCacheModule,
   ],
   controllers: [AppController],
   providers: [AppService],
@@ -440,6 +450,7 @@ import {
   UseGuards,
   Req,
   UnauthorizedException,
+  Inject,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { GetUser } from './decorators/auth.decorators';
@@ -447,10 +458,15 @@ import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { LocalAuthGuard } from './guards/local-auth.guard';
 import { UserRegisterDTO } from './dtos/user-register.dto';
 import { Response, Request } from 'express';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import { Cache } from 'cache-manager';
 
 @Controller('auth')
 export class AuthController {
-  constructor(private authService: AuthService) {}
+  constructor(
+    private authService: AuthService,
+    @Inject(CACHE_MANAGER) private cacheManager: Cache,
+  ) {}
 
   @UseGuards(LocalAuthGuard)
   @Post('login')
@@ -534,8 +550,16 @@ export class AuthController {
 
   @UseGuards(JwtAuthGuard)
   @Get('profile')
-  getProfile(@GetUser() user: { id: number; email: string }) {
+  async getProfile(@GetUser() user: { id: number; email: string }) {
+    const cacheKey = `profile:${user.id}`;
+    const cachedData = await this.cacheManager.get(cacheKey);
+    if (cachedData) {
+      console.log('from cache');
+      return cachedData;
+    }
     const existingUser = this.authService.getMe(user.id);
+    console.log('from db');
+    await this.cacheManager.set(cacheKey, existingUser, 300);
     return existingUser;
   }
 }
@@ -553,6 +577,7 @@ import { JwtStrategy } from './strategies/jwt.strategy';
 import { LocalStrategy } from './strategies/local.strategy';
 import { UsersModule } from '../users/users.module';
 import { RefreshTokenService } from './refresh-token.service';
+import { RedisCacheModule } from 'src/config/redis.config';
 
 @Module({
   imports: [
@@ -560,8 +585,9 @@ import { RefreshTokenService } from './refresh-token.service';
     PassportModule,
     JwtModule.register({
       secret: process.env.JWT_SECRET || 'secr3t',
-      signOptions: { expiresIn: '1h' }, // Access token expires in 1 hour
+      signOptions: { expiresIn: '1h' },
     }),
+    RedisCacheModule,
   ],
   providers: [AuthService, LocalStrategy, JwtStrategy, RefreshTokenService],
   controllers: [AuthController],
@@ -1956,6 +1982,105 @@ export class UpdateCoverDto extends PartialType(CreateCoverDto) {}
 
 ```
 
+### src/config/redis.config.ts
+```ts
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+import { CacheModule } from '@nestjs/cache-manager';
+import { Global, Module, OnModuleInit } from '@nestjs/common';
+import { ConfigModule, ConfigService } from '@nestjs/config';
+import * as redisStore from 'cache-manager-redis-store';
+import { Cache } from 'cache-manager';
+import { Inject } from '@nestjs/common';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+
+@Global()
+@Module({
+  imports: [
+    CacheModule.registerAsync({
+      imports: [ConfigModule],
+      // eslint-disable-next-line @typescript-eslint/require-await
+      useFactory: async (configService: ConfigService) => ({
+        store: redisStore,
+        host: configService.get('REDIS_HOST'),
+        port: configService.get('REDIS_PORT'),
+        password: configService.get('REDIS_PASSWORD'),
+        ttl: configService.get('REDIS_TTL'),
+        max: 100,
+        isGlobal: true,
+      }),
+      inject: [ConfigService],
+    }),
+  ],
+  exports: [CacheModule],
+})
+export class RedisCacheModule implements OnModuleInit {
+  constructor(
+    @Inject(CACHE_MANAGER) private cacheManager: Cache,
+    private configService: ConfigService,
+  ) {}
+
+  async onModuleInit() {
+    try {
+      // Test connection with detailed monitoring
+      const testKey = 'test-connection';
+      const startTime = Date.now();
+
+      // Test write operation
+      console.log('Testing Redis write operation...');
+      await this.cacheManager.set(
+        testKey,
+        { test: true, timestamp: startTime },
+        60,
+      );
+
+      // Test read operation
+      console.log('Testing Redis read operation...');
+      const testValue = await this.cacheManager.get(testKey);
+      const latency = Date.now() - startTime;
+
+      // Test delete operation
+      console.log('Testing Redis delete operation...');
+      await this.cacheManager.del(testKey);
+
+      // Log detailed connection status
+      console.log('Redis Connection Status:', {
+        success: (testValue as { test: boolean })?.test === true,
+        host: this.configService.get('REDIS_HOST'),
+        port: this.configService.get('REDIS_PORT'),
+        latency: `${latency}ms`,
+        ttl: this.configService.get('REDIS_TTL'),
+        maxConnections: 100,
+        operations: {
+          write: 'OK',
+          read: !!testValue,
+          delete: 'OK',
+        },
+        connectionDetails: {
+          secured: !!this.configService.get('REDIS_PASSWORD'),
+          globalCache: true,
+          defaultTTL: this.configService.get('REDIS_TTL'),
+        },
+      });
+    } catch (error) {
+      console.error('Redis Connection Failed:', {
+        error: error.message,
+        host: this.configService.get('REDIS_HOST'),
+        port: this.configService.get('REDIS_PORT'),
+        timestamp: new Date().toISOString(),
+        details: {
+          name: error.name,
+          code: error.code,
+          stack: error.stack,
+        },
+      });
+      throw error; // Prevent app start on Redis connection failure
+    }
+  }
+}
+
+```
+
 ### src/config/mailer.config.ts
 ```ts
 import { MailerOptions } from '@nestjs-modules/mailer';
@@ -1978,7 +2103,7 @@ export const mailerConfig: MailerOptions = {
     },
   },
   defaults: {
-    from: '"No Reply" <chain4good@gmail.com>',
+    from: '"Chain4Good" <chain4good@gmail.com>',
   },
   template: {
     dir: join(__dirname, '..', 'templates'),
@@ -2949,13 +3074,19 @@ export class UsersService {
       data,
     });
   }
+
+  async findAllByRole(roleId: number) {
+    return this.prisma.user.findMany({
+      where: { roleId },
+    });
+  }
 }
 
 ```
 
 ### src/users/users.controller.ts
 ```ts
-import { Body, Controller, Param, Patch } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { UpdateUserDto } from './dto/update-user.dto';
 
@@ -2965,6 +3096,10 @@ export class UserController {
   @Patch(':id')
   update(@Body() updateUserDto: UpdateUserDto, @Param('id') id: string) {
     return this.userService.update(+id, updateUserDto);
+  }
+  @Get('role/:id')
+  findAllByRole(@Param('id') id: number) {
+    return this.userService.findAllByRole(+id);
   }
 }
 
@@ -3004,13 +3139,18 @@ import { MailerService as NestMailerService } from '@nestjs-modules/mailer';
 export class MailerService {
   constructor(private readonly mailerService: NestMailerService) {}
 
-  async sendCampaignCreated(email: string, campaignName: string) {
+  async sendCampaignCreated(
+    email: string,
+    campaignName: string,
+    campaignId: number,
+  ) {
     await this.mailerService.sendMail({
       to: email,
-      subject: 'Campaign Created Successfully',
-      template: 'campaign-created', // tên của template trong thư mục templates
+      subject: 'Chiến dịch tạo ra thành công',
+      template: 'campaign-created',
       context: {
         campaignName,
+        campaignId,
       },
     });
   }
@@ -3059,6 +3199,25 @@ export class MailerService {
       to: email,
       subject,
       html: content,
+    });
+  }
+
+  async sendCustomEmail(email: string, subject: string, content: string) {
+    await this.mailerService.sendMail({
+      to: email,
+      subject,
+      html: content,
+    });
+  }
+
+  async sendToAdminCampaignCreated(email: string, campaignName: string) {
+    await this.mailerService.sendMail({
+      to: email,
+      subject: 'Chiến dịch mới được tạo',
+      template: 'campaign-created-admin',
+      context: {
+        campaignName,
+      },
     });
   }
 }
@@ -3405,39 +3564,49 @@ export class CampaignRepo extends BaseRepository<
 
 ### src/campaign/campaign.controller.ts
 ```ts
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import {
-  Controller,
-  Get,
-  Post,
   Body,
-  Patch,
-  Param,
+  Controller,
   Delete,
-  UseGuards,
+  Get,
+  Inject,
+  Param,
+  Patch,
+  Post,
   Query,
+  UseGuards,
 } from '@nestjs/common';
+import { CampaignStatus } from '@prisma/client';
+import { Cache } from 'cache-manager';
+import { GetUser, UserExtract } from 'src/auth/decorators/auth.decorators';
+import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { CampaignService } from './campaign.service';
 import { CreateCampaignDto } from './dto/create-campaign.dto';
 import { UpdateCampaignDto } from './dto/update-campaign.dto';
-import { GetUser, UserExtract } from 'src/auth/decorators/auth.decorators';
-import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
-import { CampaignStatus } from '@prisma/client';
 
 @Controller('campaigns')
 export class CampaignController {
-  constructor(private readonly campaignService: CampaignService) {}
+  constructor(
+    private readonly campaignService: CampaignService,
+    @Inject(CACHE_MANAGER) private cacheManager: Cache,
+  ) {}
 
   @Post()
   @UseGuards(JwtAuthGuard)
-  create(
+  async create(
     @Body() createCampaignDto: CreateCampaignDto,
     @GetUser() user: UserExtract,
   ) {
-    const campaign = this.campaignService.create({
+    const campaign = await this.campaignService.create({
       ...createCampaignDto,
       userId: user.id,
       email: user.email,
     });
+
+    const cachePattern = `my-campaigns:${user.id}:*`;
+    await this.cacheManager.del(cachePattern);
+
     return campaign;
   }
 
@@ -3472,12 +3641,24 @@ export class CampaignController {
 
   @Get('my-campaigns')
   @UseGuards(JwtAuthGuard)
-  findMyCampaigns(
+  async findMyCampaigns(
     @GetUser() user: UserExtract,
     @Query('page') page: number,
     @Query('limit') limit: number,
   ) {
-    return this.campaignService.findMyCampaigns(user.id, page, limit);
+    // const cacheKey = `my-campaigns:${user.id}:${page}:${limit}`;
+    // const cachedData = await this.cacheManager.get(cacheKey);
+    // if (cachedData) {
+    //   return cachedData;
+    // }
+    const campaigns = await this.campaignService.findMyCampaigns(
+      user.id,
+      page,
+      limit,
+    );
+    // await this.cacheManager.set(cacheKey, campaigns, 300);
+
+    return campaigns;
   }
 
   @Get('calculate-eth-goal')
@@ -3491,13 +3672,17 @@ export class CampaignController {
   }
 
   @Patch(':id')
-  update(
+  async update(
     @Param('id') id: string,
     @Body() updateCampaignDto: UpdateCampaignDto,
   ) {
-    console.log(updateCampaignDto);
+    const campaign = await this.campaignService.update(+id, updateCampaignDto);
 
-    return this.campaignService.update(+id, updateCampaignDto);
+    // Invalidate my-campaigns cache for the campaign owner
+    const cachePattern = `my-campaigns:${campaign.userId}:*`;
+    await this.cacheManager.del(cachePattern);
+
+    return campaign;
   }
 
   @Delete(':id')
@@ -3520,6 +3705,8 @@ import { MailerService } from '../mailer/mailer.service';
 import { CampaignStatus, Prisma } from '@prisma/client';
 import { AiService } from 'src/ai/ai.service';
 import { DonationService } from 'src/donation/donation.service';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import { CampaignCreatedEvent } from './events/campaign-created.event';
 
 @Injectable()
 export class CampaignService {
@@ -3528,6 +3715,7 @@ export class CampaignService {
     private readonly mailerService: MailerService,
     private readonly aiService: AiService,
     private readonly donationService: DonationService,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   async create(
@@ -3565,7 +3753,11 @@ export class CampaignService {
           user: true,
         },
       );
-      await this.mailerService.sendCampaignCreated(email, campaign.title);
+
+      this.eventEmitter.emit(
+        'campaign.created',
+        new CampaignCreatedEvent(campaign.title, email, campaign.id),
+      );
 
       return campaign;
     } catch (error) {
@@ -3779,17 +3971,28 @@ export class CampaignService {
 ### src/campaign/campaign.module.ts
 ```ts
 import { Module, forwardRef } from '@nestjs/common';
+import { EventEmitterModule } from '@nestjs/event-emitter';
 import { CampaignController } from './campaign.controller';
 import { CampaignService } from './campaign.service';
 import { CampaignRepo } from './campaign.repository';
 import { MailerModule } from '../mailer/mailer.module';
 import { AiModule } from '../ai/ai.module';
 import { DonationModule } from '../donation/donation.module';
+import { UsersModule } from '../users/users.module';
+import { CampaignCreatedListener } from './listeners/campaign-created.listener';
+import { RedisCacheModule } from '../config/redis.config';
 
 @Module({
-  imports: [MailerModule, AiModule, forwardRef(() => DonationModule)],
+  imports: [
+    EventEmitterModule.forRoot(),
+    MailerModule,
+    AiModule,
+    UsersModule,
+    forwardRef(() => DonationModule),
+    RedisCacheModule,
+  ],
   controllers: [CampaignController],
-  providers: [CampaignService, CampaignRepo],
+  providers: [CampaignService, CampaignRepo, CampaignCreatedListener],
   exports: [CampaignService],
 })
 export class CampaignModule {}
@@ -3809,6 +4012,67 @@ export class Campaign {
 
 ```
 
+### src/campaign/listeners/campaign-created.listener.ts
+```ts
+import { Injectable } from '@nestjs/common';
+import { OnEvent } from '@nestjs/event-emitter';
+import { MailerService } from '../../mailer/mailer.service';
+import { UsersService } from '../../users/users.service';
+import { CampaignCreatedEvent } from '../events/campaign-created.event';
+
+@Injectable()
+export class CampaignCreatedListener {
+  constructor(
+    private readonly mailerService: MailerService,
+    private readonly userService: UsersService,
+  ) {}
+
+  @OnEvent('campaign.created', { async: true })
+  async handleCampaignCreatedEvent(event: CampaignCreatedEvent) {
+    try {
+      await this.mailerService.sendCampaignCreated(
+        event.userEmail,
+        event.campaignTitle,
+        event.campaignId,
+      );
+
+      const admins = await this.userService.findAllByRole(1);
+      await Promise.all(
+        admins.map((admin) =>
+          this.mailerService.sendToAdminCampaignCreated(
+            admin.email,
+            event.campaignTitle,
+          ),
+        ),
+      );
+    } catch (error) {
+      console.error('Failed to send campaign created emails:', error);
+    }
+  }
+}
+
+```
+
+### src/campaign/events/campaign-created.event.ts
+```ts
+export class CampaignCreatedEvent {
+  constructor(
+    public readonly campaignTitle: string,
+    public readonly userEmail: string,
+    public readonly campaignId: number,
+  ) {}
+}
+
+export class CampaignCreatedSuccessEvent {
+  constructor(
+    public readonly campaignTitle: string,
+    public readonly userEmail: string,
+    public readonly campaignId: number,
+  ) {}
+}
+
+```
+
 ### src/campaign/dto/update-campaign.dto.ts
 ```ts
 import { PartialType } from '@nestjs/mapped-types';
@@ -3823,14 +4087,15 @@ export class UpdateCampaignDto extends PartialType(CreateCampaignDto) {}
 // src/campaign/dto/create-campaign.dto.ts
 import { CampaignStatus } from '@prisma/client';
 import {
-  IsNotEmpty,
-  IsString,
-  IsOptional,
-  IsDateString,
-  IsNumber,
-  IsInt,
-  IsBoolean,
   IsArray,
+  IsBoolean,
+  IsDateString,
+  IsEnum,
+  IsInt,
+  IsNotEmpty,
+  IsNumber,
+  IsOptional,
+  IsString,
 } from 'class-validator';
 
 export class CreateCampaignDto {
@@ -3861,10 +4126,6 @@ export class CreateCampaignDto {
   @IsOptional()
   isNoLimit: boolean;
 
-  @IsString()
-  @IsOptional()
-  status: CampaignStatus;
-
   @IsInt()
   @IsNotEmpty()
   categoryId: number;
@@ -3876,6 +4137,10 @@ export class CreateCampaignDto {
   @IsArray()
   @IsNotEmpty()
   images: string[];
+
+  @IsOptional()
+  @IsEnum(CampaignStatus)
+  status?: CampaignStatus;
 
   @IsInt()
   @IsNotEmpty()

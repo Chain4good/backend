@@ -25,5 +25,9 @@ export class CreateDonationDto {
 
   @IsString()
   @IsOptional()
+  token?: string;
+
+  @IsString()
+  @IsOptional()
   address?: string;
 }

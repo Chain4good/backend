@@ -18,7 +18,7 @@ export const mailerConfig: MailerOptions = {
     },
   },
   defaults: {
-    from: '"No Reply" <chain4good@gmail.com>',
+    from: '"Chain4Good" <chain4good@gmail.com>',
   },
   template: {
     dir: join(__dirname, '..', 'templates'),
