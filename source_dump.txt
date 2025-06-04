@@ -47,6 +47,12 @@ backend/
 │   │   │   └── migration.sql
 │   │   ├── 20250601083337_add_campaign_approval_status/
 │   │   │   └── migration.sql
+│   │   ├── 20250603103308_add_token_col_donation/
+│   │   │   └── migration.sql
+│   │   ├── 20250603122112_update_type_amount_donation/
+│   │   │   └── migration.sql
+│   │   ├── 20250603153326_add_post_and_topic/
+│   │   │   └── migration.sql
 │   │   └── migration_lock.toml
 │   └── schema.prisma
 ├── src/
@@ -134,6 +140,10 @@ backend/
 │   │   ├── cover.module.ts
 │   │   ├── cover.repository.ts
 │   │   └── cover.service.ts
+│   ├── dashboard/
+│   │   ├── dashboard.controller.ts
+│   │   ├── dashboard.module.ts
+│   │   └── dashboard.service.ts
 │   ├── donation/
 │   │   ├── dto/
 │   │   │   ├── create-donation.dto.ts
@@ -182,6 +192,14 @@ backend/
 │   │   ├── notification.module.ts
 │   │   ├── notification.repository.ts
 │   │   └── notification.service.ts
+│   ├── post/
+│   │   ├── dto/
+│   │   │   ├── create-post.dto.ts
+│   │   │   └── update-post.dto.ts
+│   │   ├── post.controller.ts
+│   │   ├── post.module.ts
+│   │   ├── post.repository.ts
+│   │   └── post.service.ts
 │   ├── prisma/
 │   │   ├── prisma.module.ts
 │   │   └── prisma.service.ts
@@ -189,6 +207,14 @@ backend/
 │   ├── templates/
 │   │   ├── campaign-created-admin.hbs
 │   │   └── campaign-created.hbs
+│   ├── topic/
+│   │   ├── dto/
+│   │   │   ├── create-topic.dto.ts
+│   │   │   └── update-topic.dto.ts
+│   │   ├── topic.controller.ts
+│   │   ├── topic.module.ts
+│   │   ├── topic.repository.ts
+│   │   └── topic.service.ts
 │   ├── upload/
 │   │   ├── cloudinary.provider.ts
 │   │   ├── upload.controller.ts
@@ -197,6 +223,7 @@ backend/
 │   ├── users/
 │   │   ├── dto/
 │   │   │   └── update-user.dto.ts
+│   │   ├── user.repository.ts
 │   │   ├── users.controller.ts
 │   │   ├── users.module.ts
 │   │   └── users.service.ts
@@ -332,7 +359,9 @@ import { DonationModule } from './donation/donation.module';
 import { CommentModule } from './comment/comment.module';
 import { AiModule } from './ai/ai.module';
 import { NotificationModule } from './notification/notification.module';
-import { RedisCacheModule } from './config/redis.config';
+import { DashboardModule } from './dashboard/dashboard.module';
+import { TopicModule } from './topic/topic.module';
+import { PostModule } from './post/post.module';
 
 @Module({
   imports: [
@@ -354,7 +383,9 @@ import { RedisCacheModule } from './config/redis.config';
     CommentModule,
     AiModule,
     NotificationModule,
-    RedisCacheModule,
+    DashboardModule,
+    TopicModule,
+    PostModule,
   ],
   controllers: [AppController],
   providers: [AppService],
@@ -420,10 +451,13 @@ async function bootstrap() {
     origin: [
       'http://localhost:5173',
       'http://127.0.0.1:5173',
+      'http://localhost:8080',
+      'http://127.0.0.1:8080',
       'http://192.168.1.26:5173',
       'http://185.200.65.252',
       'http://chain4good.io.vn',
       'https://chain4good.io.vn',
+      'https://admin.chain4good.io.vn',
       // Add your production domain when deploying
     ],
     credentials: true,
@@ -450,7 +484,6 @@ import {
   UseGuards,
   Req,
   UnauthorizedException,
-  Inject,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { GetUser } from './decorators/auth.decorators';
@@ -458,15 +491,10 @@ import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { LocalAuthGuard } from './guards/local-auth.guard';
 import { UserRegisterDTO } from './dtos/user-register.dto';
 import { Response, Request } from 'express';
-import { CACHE_MANAGER } from '@nestjs/cache-manager';
-import { Cache } from 'cache-manager';
 
 @Controller('auth')
 export class AuthController {
-  constructor(
-    private authService: AuthService,
-    @Inject(CACHE_MANAGER) private cacheManager: Cache,
-  ) {}
+  constructor(private authService: AuthService) {}
 
   @UseGuards(LocalAuthGuard)
   @Post('login')
@@ -550,16 +578,8 @@ export class AuthController {
 
   @UseGuards(JwtAuthGuard)
   @Get('profile')
-  async getProfile(@GetUser() user: { id: number; email: string }) {
-    const cacheKey = `profile:${user.id}`;
-    const cachedData = await this.cacheManager.get(cacheKey);
-    if (cachedData) {
-      console.log('from cache');
-      return cachedData;
-    }
+  getProfile(@GetUser() user: { id: number; email: string }) {
     const existingUser = this.authService.getMe(user.id);
-    console.log('from db');
-    await this.cacheManager.set(cacheKey, existingUser, 300);
     return existingUser;
   }
 }
@@ -587,7 +607,6 @@ import { RedisCacheModule } from 'src/config/redis.config';
       secret: process.env.JWT_SECRET || 'secr3t',
       signOptions: { expiresIn: '1h' },
     }),
-    RedisCacheModule,
   ],
   providers: [AuthService, LocalStrategy, JwtStrategy, RefreshTokenService],
   controllers: [AuthController],
@@ -1127,6 +1146,10 @@ export class CreateDonationDto {
 
   @IsString()
   @IsOptional()
+  token?: string;
+
+  @IsString()
+  @IsOptional()
   address?: string;
 }
 
@@ -1555,7 +1578,6 @@ export class NotificationGateway
   }
 
   handleDisconnect(client: Socket): void {
-    console.log(`Client disconnected: ${client.id}`);
     this.removeSocket(client.id);
   }
 
@@ -1982,6 +2004,231 @@ export class UpdateCoverDto extends PartialType(CreateCoverDto) {}
 
 ```
 
+### src/topic/topic.module.ts
+```ts
+import { Module } from '@nestjs/common';
+import { TopicController } from './topic.controller';
+import { TopicService } from './topic.service';
+import { TopicRepository } from './topic.repository';
+
+@Module({
+  controllers: [TopicController],
+  providers: [TopicService, TopicRepository],
+  exports: [TopicService],
+})
+export class TopicModule {}
+
+```
+
+### src/topic/topic.service.ts
+```ts
+import { Injectable } from '@nestjs/common';
+import { TopicRepository } from './topic.repository';
+import { CreateTopicDto } from './dto/create-topic.dto';
+import { UpdateTopicDto } from './dto/update-topic.dto';
+
+@Injectable()
+export class TopicService {
+  constructor(private readonly topicRepo: TopicRepository) {}
+
+  create(createTopicDto: CreateTopicDto) {
+    return this.topicRepo.create(createTopicDto);
+  }
+
+  findAll() {
+    return this.topicRepo.findAll({
+      include: {
+        _count: {
+          select: {
+            posts: true,
+          },
+        },
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+  }
+
+  findOne(id: number) {
+    return this.topicRepo.findOne(id, {
+      posts: {
+        where: {
+          published: true,
+        },
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              image: true,
+            },
+          },
+        },
+        orderBy: {
+          createdAt: 'desc',
+        },
+      },
+      _count: {
+        select: {
+          posts: true,
+        },
+      },
+    });
+  }
+
+  update(id: number, updateTopicDto: UpdateTopicDto) {
+    return this.topicRepo.update(id, updateTopicDto);
+  }
+
+  remove(id: number) {
+    return this.topicRepo.delete(id);
+  }
+
+  async findPopularTopics(limit: number = 5) {
+    return this.topicRepo.paginate(1, limit, {
+      include: {
+        _count: {
+          select: {
+            posts: true,
+          },
+        },
+      },
+      orderBy: {
+        posts: {
+          _count: 'desc',
+        },
+      },
+    });
+  }
+
+  async searchTopics(search: string) {
+    return this.topicRepo.findBy({
+      OR: [
+        {
+          name: {
+            contains: search,
+            mode: 'insensitive',
+          },
+        },
+        {
+          description: {
+            contains: search,
+            mode: 'insensitive',
+          },
+        },
+      ],
+    });
+  }
+}
+
+```
+
+### src/topic/topic.controller.ts
+```ts
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
+  UseGuards,
+} from '@nestjs/common';
+import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
+import { CreateTopicDto } from './dto/create-topic.dto';
+import { TopicService } from './topic.service';
+import { UpdateTopicDto } from './dto/update-topic.dto';
+
+@Controller('topics')
+export class TopicController {
+  constructor(private readonly topicService: TopicService) {}
+
+  @Post()
+  @UseGuards(JwtAuthGuard)
+  create(@Body() createTopicDto: CreateTopicDto) {
+    return this.topicService.create(createTopicDto);
+  }
+
+  @Get()
+  findAll() {
+    return this.topicService.findAll();
+  }
+
+  @Get(':id')
+  findOne(@Param('id') id: string) {
+    return this.topicService.findOne(+id);
+  }
+
+  @Patch(':id')
+  @UseGuards(JwtAuthGuard)
+  update(@Param('id') id: string, @Body() updateTopicDto: UpdateTopicDto) {
+    return this.topicService.update(+id, updateTopicDto);
+  }
+
+  @Delete(':id')
+  @UseGuards(JwtAuthGuard)
+  remove(@Param('id') id: string) {
+    return this.topicService.remove(+id);
+  }
+}
+
+```
+
+### src/topic/topic.repository.ts
+```ts
+import { Injectable } from '@nestjs/common';
+import { BaseRepository } from '../common/base.repository';
+import { Topic, Prisma } from '@prisma/client';
+import { PrismaService } from '../prisma/prisma.service';
+
+@Injectable()
+export class TopicRepository extends BaseRepository<
+  Topic,
+  Prisma.TopicWhereInput,
+  Prisma.TopicCreateInput,
+  Prisma.TopicUpdateInput,
+  Prisma.TopicOrderByWithRelationInput,
+  Prisma.TopicInclude
+> {
+  protected readonly modelName = 'Topic' as Prisma.ModelName;
+  constructor(protected readonly prisma: PrismaService) {
+    super();
+  }
+}
+
+```
+
+### src/topic/dto/update-topic.dto.ts
+```ts
+import { PartialType } from '@nestjs/mapped-types';
+import { CreateTopicDto } from './create-topic.dto';
+
+export class UpdateTopicDto extends PartialType(CreateTopicDto) {}
+
+```
+
+### src/topic/dto/create-topic.dto.ts
+```ts
+import { IsNotEmpty, IsOptional, IsString } from 'class-validator';
+
+export class CreateTopicDto {
+  @IsString()
+  @IsNotEmpty()
+  name: string;
+
+  @IsString()
+  @IsOptional()
+  description?: string;
+
+  @IsString()
+  @IsOptional()
+  icon?: string;
+}
+
+```
+
 ### src/config/redis.config.ts
 ```ts
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
@@ -2113,6 +2360,215 @@ export const mailerConfig: MailerOptions = {
     },
   },
 };
+
+```
+
+### src/dashboard/dashboard.controller.ts
+```ts
+import { Controller, Get, Query, UseGuards } from '@nestjs/common';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { DashboardService } from './dashboard.service';
+
+@Controller('dashboard')
+@UseGuards(JwtAuthGuard)
+export class DashboardController {
+  constructor(private readonly dashboardService: DashboardService) {}
+
+  @Get('stats')
+  async getStats() {
+    return this.dashboardService.getStats();
+  }
+
+  @Get('campaigns-stats')
+  async getCampaignStats(@Query('days') days: number = 30) {
+    return this.dashboardService.getCampaignStats(days);
+  }
+
+  @Get('donations-stats')
+  async getDonationStats(@Query('days') days: number = 30) {
+    return this.dashboardService.getDonationStats(days);
+  }
+
+  @Get('recent-activities')
+  async getRecentActivities(@Query('limit') limit: number = 10) {
+    return this.dashboardService.getRecentActivities(limit);
+  }
+
+  @Get('top-campaigns')
+  async getTopCampaigns(@Query('limit') limit: number = 5) {
+    return this.dashboardService.getTopCampaigns(limit);
+  }
+
+  @Get('user-growth')
+  async getUserGrowth(@Query('days') days: number = 30) {
+    return this.dashboardService.getUserGrowth(days);
+  }
+}
+
+```
+
+### src/dashboard/dashboard.module.ts
+```ts
+import { Module } from '@nestjs/common';
+import { DashboardController } from './dashboard.controller';
+import { DashboardService } from './dashboard.service';
+import { PrismaModule } from '../prisma/prisma.module';
+
+@Module({
+  imports: [PrismaModule],
+  controllers: [DashboardController],
+  providers: [DashboardService],
+})
+export class DashboardModule {}
+
+```
+
+### src/dashboard/dashboard.service.ts
+```ts
+import { Injectable } from '@nestjs/common';
+import { PrismaService } from '../prisma/prisma.service';
+import { CampaignStatus } from '@prisma/client';
+
+@Injectable()
+export class DashboardService {
+  constructor(private prisma: PrismaService) {}
+
+  async getStats() {
+    const [
+      totalUsers,
+      totalCampaigns,
+      totalDonations,
+      totalAmount,
+      activeCampaigns,
+    ] = await Promise.all([
+      this.prisma.user.count(),
+      this.prisma.campaign.count(),
+      this.prisma.donation.count(),
+      this.prisma.donation.aggregate({
+        _sum: {
+          amount: true,
+        },
+      }),
+      this.prisma.campaign.count({
+        where: {
+          status: CampaignStatus.ACTIVE,
+        },
+      }),
+    ]);
+
+    return {
+      totalUsers,
+      totalCampaigns,
+      totalDonations,
+      totalAmount: totalAmount._sum.amount || 0,
+      activeCampaigns,
+    };
+  }
+
+  async getCampaignStats(days: number) {
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - days);
+
+    const campaigns = await this.prisma.campaign.groupBy({
+      by: ['status'],
+      where: {
+        createdAt: {
+          gte: startDate,
+        },
+      },
+      _count: true,
+    });
+
+    return campaigns;
+  }
+
+  async getDonationStats(days: number) {
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - days);
+
+    const donations = await this.prisma.donation.findMany({
+      where: {
+        donatedAt: {
+          gte: startDate,
+        },
+      },
+      select: {
+        amount: true,
+        donatedAt: true,
+      },
+      orderBy: {
+        donatedAt: 'asc',
+      },
+    });
+
+    return donations;
+  }
+
+  async getRecentActivities(limit: number) {
+    const activities = await this.prisma.donation.findMany({
+      take: limit,
+      orderBy: {
+        donatedAt: 'desc',
+      },
+      include: {
+        user: {
+          select: {
+            name: true,
+            image: true,
+          },
+        },
+        campaign: {
+          select: {
+            title: true,
+          },
+        },
+      },
+    });
+
+    return activities;
+  }
+
+  async getTopCampaigns(limit: number) {
+    return this.prisma.campaign.findMany({
+      take: limit,
+      orderBy: {
+        totalDonated: 'desc',
+      },
+      include: {
+        _count: {
+          select: {
+            donations: true,
+          },
+        },
+        user: {
+          select: {
+            name: true,
+          },
+        },
+      },
+    });
+  }
+
+  async getUserGrowth(days: number) {
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - days);
+
+    const users = await this.prisma.user.groupBy({
+      by: ['createdAt'],
+      where: {
+        createdAt: {
+          gte: startDate,
+        },
+      },
+      _count: true,
+      orderBy: {
+        createdAt: 'asc',
+      },
+    });
+
+    return users;
+  }
+}
 
 ```
 
@@ -3003,17 +3459,302 @@ export function toCamelCase(name: string | undefined) {
 
 ```
 
+### src/post/post.module.ts
+```ts
+import { Module } from '@nestjs/common';
+import { PostController } from './post.controller';
+import { PostService } from './post.service';
+import { PostRepository } from './post.repository';
+
+@Module({
+  controllers: [PostController],
+  providers: [PostService, PostRepository],
+  exports: [PostService],
+})
+export class PostModule {}
+
+```
+
+### src/post/post.service.ts
+```ts
+import { Injectable } from '@nestjs/common';
+import { PostRepository } from './post.repository';
+import { CreatePostDto } from './dto/create-post.dto';
+import { UpdatePostDto } from './dto/update-post.dto';
+import { Post, Prisma } from '@prisma/client';
+
+@Injectable()
+export class PostService {
+  constructor(private readonly postRepo: PostRepository) {}
+
+  async create(
+    createPostDto: CreatePostDto & { userId: number },
+  ): Promise<Post> {
+    const { userId, topicId, ...rest } = createPostDto;
+    return this.postRepo.create({
+      ...rest,
+      user: { connect: { id: userId } },
+      topic: { connect: { id: topicId } },
+      slug: this.createSlug(rest.title),
+    });
+  }
+
+  async findOneBySlug(slug: string) {
+    return this.postRepo.findOneBy(
+      {
+        slug,
+      },
+      {
+        topic: true,
+        user: {
+          select: {
+            id: true,
+            name: true,
+            image: true,
+          },
+        },
+      },
+    );
+  }
+
+  async findAll(
+    page: number = 1,
+    limit: number = 10,
+    search?: string,
+    topicId?: number,
+    published: boolean = true,
+  ) {
+    const where: Prisma.PostWhereInput = {
+      published,
+      ...(topicId && { topicId: Number(topicId) }),
+      ...(search && {
+        OR: [
+          {
+            title: {
+              contains: search,
+              mode: Prisma.QueryMode.insensitive,
+            },
+          },
+          {
+            content: {
+              contains: search,
+              mode: Prisma.QueryMode.insensitive,
+            },
+          },
+        ],
+      }),
+    };
+
+    return this.postRepo.paginate(page, limit, {
+      where,
+      orderBy: { createdAt: 'desc' },
+      include: {
+        topic: true,
+        user: {
+          select: {
+            id: true,
+            name: true,
+            image: true,
+          },
+        },
+      },
+    });
+  }
+
+  findOne(id: number) {
+    return this.postRepo.findOne(id, {
+      topic: true,
+      user: {
+        select: {
+          id: true,
+          name: true,
+          image: true,
+        },
+      },
+    });
+  }
+
+  update(id: number, updatePostDto: UpdatePostDto) {
+    const { topicId, ...rest } = updatePostDto;
+    return this.postRepo.update(
+      id,
+      {
+        ...rest,
+        ...(topicId && { topic: { connect: { id: topicId } } }),
+      },
+      {
+        topic: true,
+        user: {
+          select: {
+            id: true,
+            name: true,
+            image: true,
+          },
+        },
+      },
+    );
+  }
+
+  remove(id: number) {
+    return this.postRepo.delete(id);
+  }
+
+  private createSlug(title: string): string {
+    return title
+      .toLowerCase()
+      .replace(/ /g, '-')
+      .replace(/[^\w-]+/g, '')
+      .replace(/--+/g, '-');
+  }
+}
+
+```
+
+### src/post/post.repository.ts
+```ts
+import { Injectable } from '@nestjs/common';
+import { BaseRepository } from '../common/base.repository';
+import { Post, Prisma } from '@prisma/client';
+import { PrismaService } from '../prisma/prisma.service';
+
+@Injectable()
+export class PostRepository extends BaseRepository<
+  Post,
+  Prisma.PostWhereInput,
+  Prisma.PostCreateInput,
+  Prisma.PostUpdateInput,
+  Prisma.PostOrderByWithRelationInput,
+  Prisma.PostInclude
+> {
+  protected readonly modelName = 'Post' as Prisma.ModelName;
+  constructor(protected readonly prisma: PrismaService) {
+    super();
+  }
+}
+
+```
+
+### src/post/post.controller.ts
+```ts
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
+import { PostService } from './post.service';
+import { CreatePostDto } from './dto/create-post.dto';
+import { UpdatePostDto } from './dto/update-post.dto';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { GetUser } from '../auth/decorators/auth.decorators';
+
+@Controller('posts')
+export class PostController {
+  constructor(private readonly postService: PostService) {}
+
+  @Post()
+  @UseGuards(JwtAuthGuard)
+  create(
+    @Body() createPostDto: CreatePostDto,
+    @GetUser() user: { id: number },
+  ) {
+    return this.postService.create({
+      ...createPostDto,
+      userId: user.id,
+    });
+  }
+
+  @Get()
+  findAll(
+    @Query('page') page: number,
+    @Query('limit') limit: number,
+    @Query('search') search: string,
+    @Query('topicId') topicId: number,
+    @Query('published') published: boolean,
+  ) {
+    return this.postService.findAll(page, limit, search, topicId, published);
+  }
+
+  @Get(':id')
+  findOne(@Param('id') id: string) {
+    return this.postService.findOne(+id);
+  }
+
+  @Get('slug/:slug')
+  findOneBySlug(@Param('slug') slug: string) {
+    return this.postService.findOneBySlug(slug);
+  }
+
+  @Patch(':id')
+  @UseGuards(JwtAuthGuard)
+  update(@Param('id') id: string, @Body() updatePostDto: UpdatePostDto) {
+    return this.postService.update(+id, updatePostDto);
+  }
+
+  @Delete(':id')
+  @UseGuards(JwtAuthGuard)
+  remove(@Param('id') id: string) {
+    return this.postService.remove(+id);
+  }
+}
+
+```
+
+### src/post/dto/update-post.dto.ts
+```ts
+// filepath: src/post/dto/update-post.dto.ts
+import { PartialType } from '@nestjs/mapped-types';
+import { CreatePostDto } from './create-post.dto';
+
+export class UpdatePostDto extends PartialType(CreatePostDto) {}
+
+```
+
+### src/post/dto/create-post.dto.ts
+```ts
+// filepath: src/post/dto/create-post.dto.ts
+import { IsNotEmpty, IsString, IsOptional, IsBoolean } from 'class-validator';
+
+export class CreatePostDto {
+  @IsString()
+  @IsNotEmpty()
+  title: string;
+
+  @IsString()
+  @IsNotEmpty()
+  content: string;
+
+  @IsString()
+  @IsOptional()
+  thumbnail?: string;
+
+  @IsNotEmpty()
+  topicId: number;
+
+  @IsBoolean()
+  @IsOptional()
+  published?: boolean;
+}
+
+```
+
 ### src/users/users.module.ts
 ```ts
 import { Module } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { PrismaModule } from '../prisma/prisma.module';
 import { UserController } from './users.controller';
+import { UserRepository } from './user.repository';
 
 @Module({
   controllers: [UserController],
   imports: [PrismaModule],
-  providers: [UsersService],
+  providers: [UsersService, UserRepository],
   exports: [UsersService],
 })
 export class UsersModule {}
@@ -3027,10 +3768,14 @@ import { PrismaService } from '../prisma/prisma.service';
 import { Prisma, User } from '@prisma/client';
 import { UserRegisterDTO } from 'src/auth/dtos/user-register.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { UserRepository } from './user.repository';
 
 @Injectable()
 export class UsersService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private readonly userRepository: UserRepository,
+  ) {}
 
   async findByEmail(email: string): Promise<User | null> {
     return this.prisma.user.findUnique({
@@ -3080,19 +3825,71 @@ export class UsersService {
       where: { roleId },
     });
   }
+
+  async findAll(
+    page: number,
+    limit: number,
+    name: string,
+    email: string,
+    role: string,
+  ) {
+    return this.userRepository.paginate(page, limit, {
+      where: {
+        ...(name && { name: { contains: name, mode: 'insensitive' } }),
+        ...(email && { email: { contains: email, mode: 'insensitive' } }),
+        ...(role && { roleId: Number(role) }),
+      },
+    });
+  }
+}
+
+```
+
+### src/users/user.repository.ts
+```ts
+import { Injectable } from '@nestjs/common';
+import { BaseRepository } from 'src/common/base.repository';
+import { User, Prisma } from '@prisma/client';
+import { PrismaService } from 'src/prisma/prisma.service';
+
+@Injectable()
+export class UserRepository extends BaseRepository<
+  User,
+  Prisma.UserWhereInput,
+  Prisma.UserCreateInput,
+  Prisma.UserUpdateInput,
+  Prisma.UserOrderByWithRelationInput,
+  Prisma.UserInclude
+> {
+  protected readonly modelName = 'User' as Prisma.ModelName;
+  constructor(protected readonly prisma: PrismaService) {
+    super();
+  }
 }
 
 ```
 
 ### src/users/users.controller.ts
 ```ts
-import { Body, Controller, Get, Param, Patch } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Query } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { UpdateUserDto } from './dto/update-user.dto';
 
 @Controller('users')
 export class UserController {
   constructor(private readonly userService: UsersService) {}
+
+  @Get('')
+  findAll(
+    @Query('page') page: number,
+    @Query('limit') limit: number,
+    @Query('name') name: string,
+    @Query('email') email: string,
+    @Query('role') role: string,
+  ) {
+    return this.userService.findAll(page, limit, name, email, role);
+  }
+
   @Patch(':id')
   update(@Body() updateUserDto: UpdateUserDto, @Param('id') id: string) {
     return this.userService.update(+id, updateUserDto);
@@ -3100,6 +3897,11 @@ export class UserController {
   @Get('role/:id')
   findAllByRole(@Param('id') id: number) {
     return this.userService.findAllByRole(+id);
+  }
+
+  @Get(':id')
+  findOne(@Param('id') id: string) {
+    return this.userService.findById(+id);
   }
 }
 
@@ -3564,13 +4366,11 @@ export class CampaignRepo extends BaseRepository<
 
 ### src/campaign/campaign.controller.ts
 ```ts
-import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import {
   Body,
   Controller,
   Delete,
   Get,
-  Inject,
   Param,
   Patch,
   Post,
@@ -3578,7 +4378,6 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { CampaignStatus } from '@prisma/client';
-import { Cache } from 'cache-manager';
 import { GetUser, UserExtract } from 'src/auth/decorators/auth.decorators';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { CampaignService } from './campaign.service';
@@ -3587,10 +4386,7 @@ import { UpdateCampaignDto } from './dto/update-campaign.dto';
 
 @Controller('campaigns')
 export class CampaignController {
-  constructor(
-    private readonly campaignService: CampaignService,
-    @Inject(CACHE_MANAGER) private cacheManager: Cache,
-  ) {}
+  constructor(private readonly campaignService: CampaignService) {}
 
   @Post()
   @UseGuards(JwtAuthGuard)
@@ -3603,10 +4399,6 @@ export class CampaignController {
       userId: user.id,
       email: user.email,
     });
-
-    const cachePattern = `my-campaigns:${user.id}:*`;
-    await this.cacheManager.del(cachePattern);
-
     return campaign;
   }
 
@@ -3639,24 +4431,47 @@ export class CampaignController {
     );
   }
 
+  @Get('valid')
+  async findCampaignValid(
+    @Query('userId') userId: number,
+    @Query('email') email: string,
+    @Query('page') page: number,
+    @Query('limit') limit: number,
+    @Query('search') search: string,
+    @Query('sort') sort: 'asc' | 'desc',
+    @Query('sortBy') sortBy: string,
+    @Query('categoryId') categoryId: number,
+    @Query('fundraiseTypeId') fundraiseTypeId: number,
+    @Query('countryId') countryId: number,
+  ) {
+    return this.campaignService.findAllValid(
+      userId,
+      email,
+      page,
+      limit,
+      search,
+      sort,
+      sortBy,
+      categoryId,
+      fundraiseTypeId,
+      countryId,
+    );
+  }
+
   @Get('my-campaigns')
   @UseGuards(JwtAuthGuard)
   async findMyCampaigns(
     @GetUser() user: UserExtract,
     @Query('page') page: number,
     @Query('limit') limit: number,
+    @Query('status') status: CampaignStatus,
   ) {
-    // const cacheKey = `my-campaigns:${user.id}:${page}:${limit}`;
-    // const cachedData = await this.cacheManager.get(cacheKey);
-    // if (cachedData) {
-    //   return cachedData;
-    // }
     const campaigns = await this.campaignService.findMyCampaigns(
       user.id,
       page,
       limit,
+      status,
     );
-    // await this.cacheManager.set(cacheKey, campaigns, 300);
 
     return campaigns;
   }
@@ -3677,11 +4492,6 @@ export class CampaignController {
     @Body() updateCampaignDto: UpdateCampaignDto,
   ) {
     const campaign = await this.campaignService.update(+id, updateCampaignDto);
-
-    // Invalidate my-campaigns cache for the campaign owner
-    const cachePattern = `my-campaigns:${campaign.userId}:*`;
-    await this.cacheManager.del(cachePattern);
-
     return campaign;
   }
 
@@ -3836,9 +4646,83 @@ export class CampaignService {
     });
   }
 
-  findMyCampaigns(userId: number, page: number = 1, limit: number = 10) {
+  findAllValid(
+    userId?: number,
+    email?: string,
+    page: number = 1,
+    limit: number = 10,
+    search?: string,
+    sort: 'asc' | 'desc' = 'desc',
+    sortBy: string = 'createdAt',
+    categoryId?: number,
+    fundraiseTypeId?: number,
+    countryId?: number,
+  ) {
+    const where: Prisma.CampaignWhereInput = {
+      ...(userId && { userId: Number(userId) }),
+      ...(email && { user: { email } }),
+      ...{ status: { in: ['ACTIVE', 'FINISHED'] } },
+      ...(categoryId && { categoryId: Number(categoryId) }),
+      ...(fundraiseTypeId && { fundraiseTypeId: Number(fundraiseTypeId) }),
+      ...(countryId && { countryId: Number(countryId) }),
+      ...(search && {
+        OR: [
+          {
+            title: {
+              contains: search,
+              mode: Prisma.QueryMode.insensitive,
+            },
+          },
+          {
+            description: {
+              contains: search,
+              mode: Prisma.QueryMode.insensitive,
+            },
+          },
+        ],
+      }),
+    };
+
+    const orderBy = {
+      [sortBy]: sort,
+    };
+
     return this.campaignRepo.paginate(page, limit, {
-      where: { userId },
+      where,
+      orderBy,
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            image: true,
+            address: true,
+          },
+        },
+        category: true,
+        country: true,
+        cover: true,
+        images: true,
+        fundraiseType: true,
+        // donations: {}
+        _count: {
+          select: {
+            donations: true,
+          },
+        },
+      },
+    });
+  }
+
+  findMyCampaigns(
+    userId: number,
+    page: number = 1,
+    limit: number = 10,
+    status: CampaignStatus,
+  ) {
+    return this.campaignRepo.paginate(page, limit, {
+      where: { userId, ...(status && { status }) },
       include: {
         user: {
           select: {
@@ -3980,7 +4864,6 @@ import { AiModule } from '../ai/ai.module';
 import { DonationModule } from '../donation/donation.module';
 import { UsersModule } from '../users/users.module';
 import { CampaignCreatedListener } from './listeners/campaign-created.listener';
-import { RedisCacheModule } from '../config/redis.config';
 
 @Module({
   imports: [
@@ -3989,7 +4872,6 @@ import { RedisCacheModule } from '../config/redis.config';
     AiModule,
     UsersModule,
     forwardRef(() => DonationModule),
-    RedisCacheModule,
   ],
   controllers: [CampaignController],
   providers: [CampaignService, CampaignRepo, CampaignCreatedListener],

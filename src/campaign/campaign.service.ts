@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
 /* eslint-disable @typescript-eslint/no-unsafe-return */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import { Injectable } from '@nestjs/common';
@@ -10,6 +12,7 @@ import { AiService } from 'src/ai/ai.service';
 import { DonationService } from 'src/donation/donation.service';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { CampaignCreatedEvent } from './events/campaign-created.event';
+import { PrismaService } from 'src/prisma/prisma.service';
 
 @Injectable()
 export class CampaignService {
@@ -19,6 +22,7 @@ export class CampaignService {
     private readonly aiService: AiService,
     private readonly donationService: DonationService,
     private readonly eventEmitter: EventEmitter2,
+    private readonly prisma: PrismaService,
   ) {}
 
   async create(
@@ -86,6 +90,75 @@ export class CampaignService {
       ...(userId && { userId: Number(userId) }),
       ...(email && { user: { email } }),
       ...(status && { status: status }),
+      ...(categoryId && { categoryId: Number(categoryId) }),
+      ...(fundraiseTypeId && { fundraiseTypeId: Number(fundraiseTypeId) }),
+      ...(countryId && { countryId: Number(countryId) }),
+      ...(search && {
+        OR: [
+          {
+            title: {
+              contains: search,
+              mode: Prisma.QueryMode.insensitive,
+            },
+          },
+          {
+            description: {
+              contains: search,
+              mode: Prisma.QueryMode.insensitive,
+            },
+          },
+        ],
+      }),
+    };
+
+    const orderBy = {
+      [sortBy]: sort,
+    };
+
+    return this.campaignRepo.paginate(page, limit, {
+      where,
+      orderBy,
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            image: true,
+            address: true,
+          },
+        },
+        category: true,
+        country: true,
+        cover: true,
+        images: true,
+        fundraiseType: true,
+        // donations: {}
+        _count: {
+          select: {
+            donations: true,
+          },
+        },
+      },
+    });
+  }
+
+  findAllValid(
+    userId?: number,
+    email?: string,
+    page: number = 1,
+    limit: number = 10,
+    search?: string,
+    sort: 'asc' | 'desc' = 'desc',
+    sortBy: string = 'createdAt',
+    categoryId?: number,
+    fundraiseTypeId?: number,
+    countryId?: number,
+  ) {
+    const where: Prisma.CampaignWhereInput = {
+      ...(userId && { userId: Number(userId) }),
+      ...(email && { user: { email } }),
+      ...{ status: { in: ['ACTIVE', 'FINISHED'] } },
       ...(categoryId && { categoryId: Number(categoryId) }),
       ...(fundraiseTypeId && { fundraiseTypeId: Number(fundraiseTypeId) }),
       ...(countryId && { countryId: Number(countryId) }),
@@ -271,5 +344,104 @@ export class CampaignService {
       console.error('Failed to fetch ETH price:', error);
       throw new Error('Could not fetch ETH price');
     }
+  }
+
+  async getDonationHistory(
+    campaignId: number,
+    startDate?: Date,
+    endDate?: Date,
+    groupBy: 'day' | 'week' | 'month' = 'day',
+  ) {
+    // const where = {
+    //   campaignId,
+    //   donatedAt: {
+    //     ...(startDate && { gte: startDate }),
+    //     ...(endDate && { lte: endDate }),
+    //   },
+    // };
+
+    let grouping;
+    switch (groupBy) {
+      case 'week':
+        grouping = `date_trunc('week', "donatedAt")`;
+        break;
+      case 'month':
+        grouping = `date_trunc('month', "donatedAt")`;
+        break;
+      default: // day
+        grouping = `date_trunc('day', "donatedAt")`;
+    }
+
+    const donationHistory = await this.prisma.$queryRaw<
+      { date: string; count: number; total_amount: number }[]
+    >`
+      SELECT 
+        ${Prisma.raw(grouping)} as date,
+        COUNT(*)::int as count,
+        SUM(amount)::float as total_amount
+      FROM "Donation"
+      WHERE "campaignId" = ${campaignId}
+        ${startDate ? Prisma.sql`AND "donatedAt" >= ${startDate}` : Prisma.empty}
+        ${endDate ? Prisma.sql`AND "donatedAt" <= ${endDate}` : Prisma.empty}
+      GROUP BY ${Prisma.raw(grouping)}
+      ORDER BY ${Prisma.raw(grouping)} ASC
+    `;
+
+    // Xử lý kết quả để điền các ngày thiếu
+    const result = this.fillMissingDates(
+      donationHistory,
+      startDate || new Date(donationHistory[0]?.date),
+      endDate || new Date(),
+      groupBy,
+    );
+
+    return {
+      data: result,
+      summary: {
+        totalDonations: result.reduce((sum, item) => sum + item.count, 0),
+        totalAmount: result.reduce((sum, item) => sum + item.total_amount, 0),
+        averageAmount:
+          result.reduce((sum, item) => sum + item.total_amount, 0) /
+            result.reduce((sum, item) => sum + item.count, 0) || 0,
+      },
+    };
+  }
+
+  private fillMissingDates(
+    data: any[],
+    startDate: Date,
+    endDate: Date,
+    groupBy: 'day' | 'week' | 'month',
+  ) {
+    const result: { date: Date; count: number; total_amount: number }[] = [];
+    const current = new Date(startDate);
+    const dataMap = new Map(
+      data.map((item) => [new Date(item.date).getTime(), item]),
+    );
+
+    while (current <= endDate) {
+      const time = current.getTime();
+      const existingData = dataMap.get(time);
+
+      result.push({
+        date: new Date(time),
+        count: existingData?.count || 0,
+        total_amount: existingData?.total_amount || 0,
+      });
+
+      // Tăng thời gian theo groupBy
+      switch (groupBy) {
+        case 'week':
+          current.setDate(current.getDate() + 7);
+          break;
+        case 'month':
+          current.setMonth(current.getMonth() + 1);
+          break;
+        default: // day
+          current.setDate(current.getDate() + 1);
+      }
+    }
+
+    return result;
   }
 }

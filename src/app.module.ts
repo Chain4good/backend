@@ -18,6 +18,9 @@ import { CommentModule } from './comment/comment.module';
 import { AiModule } from './ai/ai.module';
 import { NotificationModule } from './notification/notification.module';
 import { DashboardModule } from './dashboard/dashboard.module';
+import { TopicModule } from './topic/topic.module';
+import { PostModule } from './post/post.module';
+import { GeminiModule } from './gemini/gemini.module';
 
 @Module({
   imports: [
@@ -40,6 +43,9 @@ import { DashboardModule } from './dashboard/dashboard.module';
     AiModule,
     NotificationModule,
     DashboardModule,
+    TopicModule,
+    PostModule,
+    GeminiModule,
   ],
   controllers: [AppController],
   providers: [AppService],

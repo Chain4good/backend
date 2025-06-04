@@ -84,6 +84,7 @@ model User {
 
   refreshTokens RefreshToken[]
   Notification  Notification[]
+  Post          Post[]
 }
 
 model Campaign {
@@ -227,4 +228,31 @@ model Notification {
   createdAt DateTime @default(now())
   userId    Int
   user      User     @relation(fields: [userId], references: [id])
+}
+
+model Topic {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique
+  description String?
+  icon        String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  posts       Post[]
+}
+
+model Post {
+  id        Int      @id @default(autoincrement())
+  title     String
+  content   String   @db.Text
+  thumbnail String?
+  slug      String   @unique
+  published Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  topicId Int
+  topic   Topic @relation(fields: [topicId], references: [id])
+
+  userId Int
+  user   User @relation(fields: [userId], references: [id])
 }

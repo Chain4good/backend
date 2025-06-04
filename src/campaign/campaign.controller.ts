@@ -63,6 +63,33 @@ export class CampaignController {
     );
   }
 
+  @Get('valid')
+  async findCampaignValid(
+    @Query('userId') userId: number,
+    @Query('email') email: string,
+    @Query('page') page: number,
+    @Query('limit') limit: number,
+    @Query('search') search: string,
+    @Query('sort') sort: 'asc' | 'desc',
+    @Query('sortBy') sortBy: string,
+    @Query('categoryId') categoryId: number,
+    @Query('fundraiseTypeId') fundraiseTypeId: number,
+    @Query('countryId') countryId: number,
+  ) {
+    return this.campaignService.findAllValid(
+      userId,
+      email,
+      page,
+      limit,
+      search,
+      sort,
+      sortBy,
+      categoryId,
+      fundraiseTypeId,
+      countryId,
+    );
+  }
+
   @Get('my-campaigns')
   @UseGuards(JwtAuthGuard)
   async findMyCampaigns(
@@ -103,5 +130,20 @@ export class CampaignController {
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.campaignService.remove(+id);
+  }
+
+  @Get(':id/donation-history')
+  async getDonationHistory(
+    @Param('id') id: string,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+    @Query('groupBy') groupBy: 'day' | 'week' | 'month' = 'day',
+  ) {
+    return this.campaignService.getDonationHistory(
+      +id,
+      startDate ? new Date(startDate) : undefined,
+      endDate ? new Date(endDate) : undefined,
+      groupBy,
+    );
   }
 }

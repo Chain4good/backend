@@ -77,4 +77,8 @@ export class DonationService {
       },
     });
   }
+
+  async findAllByUserId(userId: number) {
+    return this.donationRepo.findAllByUserId(userId);
+  }
 }

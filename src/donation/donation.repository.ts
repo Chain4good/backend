@@ -25,4 +25,21 @@ export class DonationRepo extends BaseRepository<
       include: params.include,
     }) as Promise<Prisma.DonationGetPayload<{ include: T }>[]>;
   }
+
+  async findAllByUserId(userId: number) {
+    return this.prisma.donation.findMany({
+      where: { userId },
+      include: {
+        campaign: {
+          select: {
+            id: true,
+            title: true,
+            categoryId: true,
+            countryId: true,
+          },
+        },
+      },
+      orderBy: { donatedAt: 'desc' },
+    });
+  }
 }

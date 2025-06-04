@@ -13,7 +13,7 @@ import { CampaignCreatedListener } from './listeners/campaign-created.listener';
   imports: [
     EventEmitterModule.forRoot(),
     MailerModule,
-    AiModule,
+    forwardRef(() => AiModule), // Add forwardRef here
     UsersModule,
     forwardRef(() => DonationModule),
   ],
