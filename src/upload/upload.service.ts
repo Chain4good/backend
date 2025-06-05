@@ -18,7 +18,6 @@ export class UploadService implements OnModuleInit {
       'CLOUDINARY_API_SECRET',
     );
 
-    console.log(cloudName, apiKey, apiSecret);
 
     if (!cloudName || !apiKey || !apiSecret) {
       throw new Error('Missing required Cloudinary configuration');

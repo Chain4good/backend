@@ -21,6 +21,7 @@ import { DashboardModule } from './dashboard/dashboard.module';
 import { TopicModule } from './topic/topic.module';
 import { PostModule } from './post/post.module';
 import { GeminiModule } from './gemini/gemini.module';
+import { ReportModule } from './report/report.module';
 
 @Module({
   imports: [
@@ -46,6 +47,8 @@ import { GeminiModule } from './gemini/gemini.module';
     TopicModule,
     PostModule,
     GeminiModule,
+    ReportModule,
+    ReportModule,
   ],
   controllers: [AppController],
   providers: [AppService],

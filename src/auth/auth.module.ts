@@ -7,6 +7,8 @@ import { AuthService } from './auth.service';
 import { RefreshTokenService } from './refresh-token.service';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { LocalStrategy } from './strategies/local.strategy';
+import { OTPService } from 'src/otp/otp.service';
+import { MailerService } from 'src/mailer/mailer.service';
 
 @Module({
   imports: [
@@ -17,8 +19,14 @@ import { LocalStrategy } from './strategies/local.strategy';
       signOptions: { expiresIn: '1h' },
     }),
   ],
-  providers: [AuthService, LocalStrategy, JwtStrategy, RefreshTokenService],
+  providers: [
+    AuthService,
+    LocalStrategy,
+    JwtStrategy,
+    OTPService,
+    RefreshTokenService,
+    MailerService,
+  ],
   controllers: [AuthController],
-  exports: [AuthService],
 })
 export class AuthModule {}

@@ -3,16 +3,35 @@
 /* eslint-disable @typescript-eslint/no-unsafe-return */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import { Injectable } from '@nestjs/common';
-import { CreateCampaignDto } from './dto/create-campaign.dto';
-import { UpdateCampaignDto } from './dto/update-campaign.dto';
-import { CampaignRepo } from './campaign.repository';
-import { MailerService } from '../mailer/mailer.service';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { CampaignStatus, Prisma } from '@prisma/client';
 import { AiService } from 'src/ai/ai.service';
 import { DonationService } from 'src/donation/donation.service';
-import { EventEmitter2 } from '@nestjs/event-emitter';
-import { CampaignCreatedEvent } from './events/campaign-created.event';
+import { CampaignEmailService } from 'src/email/campaign-email.service';
 import { PrismaService } from 'src/prisma/prisma.service';
+import { MailerService } from '../mailer/mailer.service';
+import { CampaignRepo } from './campaign.repository';
+import { CreateCampaignDto } from './dto/create-campaign.dto';
+import { UpdateCampaignDto } from './dto/update-campaign.dto';
+import { CampaignCreatedEvent } from './events/campaign-created.event';
+
+interface CampaignWithRelations {
+  id: number;
+  title: string;
+  description: string;
+  status: string;
+  name: string;
+  user: {
+    id: number;
+    name: string;
+    email: string;
+  };
+  category?: any;
+  country?: any;
+  cover?: any;
+  images?: any[];
+  donations?: any[];
+}
 
 @Injectable()
 export class CampaignService {
@@ -23,6 +42,7 @@ export class CampaignService {
     private readonly donationService: DonationService,
     private readonly eventEmitter: EventEmitter2,
     private readonly prisma: PrismaService,
+    private readonly campaignEmailService: CampaignEmailService,
   ) {}
 
   async create(
@@ -238,7 +258,6 @@ export class CampaignService {
       },
     });
   }
-
   findOne(id: number) {
     return this.campaignRepo.findOne(id, {
       category: true,
@@ -250,8 +269,6 @@ export class CampaignService {
           id: true,
           name: true,
           email: true,
-          image: true,
-          address: true,
         },
       },
       donations: {
@@ -271,7 +288,7 @@ export class CampaignService {
   }
 
   async update(id: number, updateCampaignDto: UpdateCampaignDto) {
-    const { images, ...rest } = updateCampaignDto;
+    const { images, status, ...rest } = updateCampaignDto;
 
     const data: Prisma.CampaignUpdateInput = {
       ...rest,
@@ -284,7 +301,7 @@ export class CampaignService {
         : {}),
     };
 
-    if (updateCampaignDto.status === 'FINISHED') {
+    if (status === 'FINISHED') {
       const campaign = await this.campaignRepo.findOne(id);
       if (!campaign) {
         throw new Error('Campaign not found');
@@ -338,7 +355,6 @@ export class CampaignService {
         'https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=vnd',
       );
       const data = await response.json();
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       return data.ethereum.vnd;
     } catch (error) {
       console.error('Failed to fetch ETH price:', error);
@@ -352,14 +368,6 @@ export class CampaignService {
     endDate?: Date,
     groupBy: 'day' | 'week' | 'month' = 'day',
   ) {
-    // const where = {
-    //   campaignId,
-    //   donatedAt: {
-    //     ...(startDate && { gte: startDate }),
-    //     ...(endDate && { lte: endDate }),
-    //   },
-    // };
-
     let grouping;
     switch (groupBy) {
       case 'week':
@@ -429,7 +437,6 @@ export class CampaignService {
         total_amount: existingData?.total_amount || 0,
       });
 
-      // Tăng thời gian theo groupBy
       switch (groupBy) {
         case 'week':
           current.setDate(current.getDate() + 7);
@@ -443,5 +450,54 @@ export class CampaignService {
     }
 
     return result;
+  }
+
+  async approveCampaign(campaignId: number) {
+    const campaign = (await this.findOne(
+      campaignId,
+    )) as unknown as CampaignWithRelations;
+    if (!campaign) {
+      throw new Error('Campaign not found');
+    }
+    if (!campaign) {
+      throw new Error('Campaign not found');
+    }
+    campaign.status = 'APPROVED';
+    await this.campaignRepo.update(campaignId, {
+      status: 'APPROVED',
+    });
+
+    await this.campaignEmailService.sendCampaignApprovalEmail(
+      campaign.user.email,
+      campaign.name,
+    );
+
+    return campaign;
+  }
+
+  async rejectCampaign(campaignId: number, reason?: string) {
+    const campaign = (await this.findOne(
+      campaignId,
+    )) as unknown as CampaignWithRelations;
+    if (!campaign) {
+      throw new Error('Campaign not found');
+    }
+
+    campaign.status = 'REJECTED';
+    await this.campaignRepo.update(campaignId, {
+      status: 'REJECTED',
+    });
+
+    if (!campaign.user?.email) {
+      throw new Error('Campaign user email not found');
+    }
+
+    await this.campaignEmailService.sendCampaignRejectionEmail(
+      campaign.user.email,
+      campaign.name,
+      reason,
+    );
+
+    return campaign;
   }
 }

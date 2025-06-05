@@ -1,15 +1,22 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  Injectable,
+  UnauthorizedException,
+  ConflictException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { UsersService } from '../users/users.service';
 import { UserRegisterDTO } from './dtos/user-register.dto';
 import { RefreshTokenService } from './refresh-token.service';
+import { VerifyOTPDto } from './dtos/verify-otp.dto';
+import { OTPService } from 'src/otp/otp.service';
 
 @Injectable()
 export class AuthService {
   constructor(
     private usersService: UsersService,
     private jwtService: JwtService,
+    private otpService: OTPService,
     private refreshTokenService: RefreshTokenService,
   ) {}
 
@@ -58,11 +65,44 @@ export class AuthService {
   }
 
   async register(data: UserRegisterDTO) {
+    const existingUser = await this.usersService.findByEmail(data.email);
+    if (existingUser) {
+      throw new ConflictException('Email already exists');
+    }
+
+    // Generate and send OTP
+    await this.otpService.generateOTP(data.email);
+
+    // Store user data temporarily (you may want to use Redis here)
+    // For now, we'll hash the password but not create the user yet
     const hashedPassword = await bcrypt.hash(data.password, 10);
+    return {
+      message: 'OTP sent to your email',
+      data: {
+        ...data,
+        password: hashedPassword,
+      },
+    };
+  }
+
+  async verifyEmailAndCreateUser(
+    verifyOTPDto: VerifyOTPDto,
+    userData: UserRegisterDTO,
+  ) {
+    const isValid = await this.otpService.verifyOTP(
+      verifyOTPDto.email,
+      verifyOTPDto.code,
+    );
+
+    if (!isValid) {
+      throw new UnauthorizedException('Invalid or expired OTP');
+    }
+
     const user = await this.usersService.create({
-      ...data,
-      password: hashedPassword,
+      ...userData,
+      isVerified: true,
     });
+
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { password: _, ...result } = user;
     return result;

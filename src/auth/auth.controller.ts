@@ -14,10 +14,15 @@ import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { LocalAuthGuard } from './guards/local-auth.guard';
 import { UserRegisterDTO } from './dtos/user-register.dto';
 import { Response, Request } from 'express';
+import { VerifyOTPDto } from './dtos/verify-otp.dto';
+import { OTPService } from 'src/otp/otp.service';
 
 @Controller('auth')
 export class AuthController {
-  constructor(private authService: AuthService) {}
+  constructor(
+    private authService: AuthService,
+    private otpService: OTPService,
+  ) {}
 
   @UseGuards(LocalAuthGuard)
   @Post('login')
@@ -92,11 +97,22 @@ export class AuthController {
   }
 
   @Post('register')
-  async register(
-    @Body()
-    userRegisterDto: UserRegisterDTO,
-  ) {
+  async register(@Body() userRegisterDto: UserRegisterDTO) {
     return this.authService.register(userRegisterDto);
+  }
+
+  @Post('verify-email')
+  async verifyEmail(
+    @Body() verifyOTPDto: VerifyOTPDto,
+    @Body('userData') userData: UserRegisterDTO,
+  ) {
+    return this.authService.verifyEmailAndCreateUser(verifyOTPDto, userData);
+  }
+
+  @Post('resend-otp')
+  async resendOTP(@Body('email') email: string) {
+    await this.otpService.generateOTP(email);
+    return { message: 'OTP resent successfully' };
   }
 
   @UseGuards(JwtAuthGuard)
