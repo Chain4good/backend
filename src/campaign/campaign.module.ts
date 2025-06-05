@@ -9,6 +9,7 @@ import { DonationModule } from '../donation/donation.module';
 import { UsersModule } from '../users/users.module';
 import { CampaignCreatedListener } from './listeners/campaign-created.listener';
 import { CampaignEmailService } from 'src/email/campaign-email.service';
+import { CampaignMonitorService } from './schedulers/campaign-monitor.service';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { CampaignEmailService } from 'src/email/campaign-email.service';
     CampaignRepo,
     CampaignCreatedListener,
     CampaignEmailService,
+    CampaignMonitorService,
   ],
   exports: [CampaignService],
 })
