@@ -35,10 +35,10 @@ export class CommentController {
 
   @UseGuards(JwtAuthGuard)
   @Post(':id/like')
-  toggleLike(
+  async toggleLike(
     @Param('id', ParseIntPipe) id: number,
     @GetUser() user: { id: number },
   ) {
-    return this.commentService.toggleLike(id, user.id);
+    return await this.commentService.toggleLike(id, user.id);
   }
 }

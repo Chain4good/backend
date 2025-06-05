@@ -3,6 +3,7 @@ import { CampaignService } from 'src/campaign/campaign.service';
 import { NotificationService } from 'src/notification/notification.service';
 import { NotificationType } from 'src/notification/types/notification.types';
 import { CommentRepo } from './comment.repository';
+import { LikeRepo } from './like.repository';
 import { CreateCommentDto } from './dto/create-comment.dto';
 import { UsersService } from 'src/users/users.service';
 
@@ -10,6 +11,7 @@ import { UsersService } from 'src/users/users.service';
 export class CommentService {
   constructor(
     private readonly commentRepo: CommentRepo,
+    private readonly likeRepo: LikeRepo,
     private readonly notificationService: NotificationService,
     private readonly campaignService: CampaignService,
     private readonly userService: UsersService,
@@ -124,34 +126,21 @@ export class CommentService {
   }
 
   async toggleLike(commentId: number, userId: number) {
-    // const existingLike = await this.commentRepo.prisma.like.findUnique({
-    //   where: {
-    //     userId_commentId: {
-    //       userId,
-    //       commentId,
-    //     },
-    //   },
-    // });
-    // if (existingLike) {
-    //   // Unlike
-    //   await this.commentRepo.prisma.like.delete({
-    //     where: {
-    //       userId_commentId: {
-    //         userId,
-    //         commentId,
-    //       },
-    //     },
-    //   });
-    //   return { liked: false };
-    // } else {
-    //   // Like
-    //   await this.commentRepo.prisma.like.create({
-    //     data: {
-    //       user: { connect: { id: userId } },
-    //       comment: { connect: { id: commentId } },
-    //     },
-    //   });
-    //   return { liked: true };
-    // }
+    const existingLike = await this.likeRepo.findOneBy({
+      userId,
+      commentId,
+    });
+
+    if (existingLike) {
+      await this.likeRepo.delete(existingLike.id);
+      return { liked: false };
+    }
+
+    await this.likeRepo.create({
+      user: { connect: { id: userId } },
+      comment: { connect: { id: commentId } },
+    });
+
+    return { liked: true };
   }
 }
