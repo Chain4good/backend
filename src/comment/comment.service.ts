@@ -124,34 +124,14 @@ export class CommentService {
   }
 
   async toggleLike(commentId: number, userId: number) {
-    // const existingLike = await this.commentRepo.prisma.like.findUnique({
-    //   where: {
-    //     userId_commentId: {
-    //       userId,
-    //       commentId,
-    //     },
-    //   },
-    // });
-    // if (existingLike) {
-    //   // Unlike
-    //   await this.commentRepo.prisma.like.delete({
-    //     where: {
-    //       userId_commentId: {
-    //         userId,
-    //         commentId,
-    //       },
-    //     },
-    //   });
-    //   return { liked: false };
-    // } else {
-    //   // Like
-    //   await this.commentRepo.prisma.like.create({
-    //     data: {
-    //       user: { connect: { id: userId } },
-    //       comment: { connect: { id: commentId } },
-    //     },
-    //   });
-    //   return { liked: true };
-    // }
+    const existingLike = await this.commentRepo.findLike(commentId, userId);
+
+    if (existingLike) {
+      await this.commentRepo.deleteLike(commentId, userId);
+      return { liked: false };
+    }
+
+    await this.commentRepo.createLike(commentId, userId);
+    return { liked: true };
   }
 }
