@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-return */
 import {
   Body,
   Controller,
@@ -15,6 +16,7 @@ import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { CampaignService } from './campaign.service';
 import { CreateCampaignDto } from './dto/create-campaign.dto';
 import { UpdateCampaignDto } from './dto/update-campaign.dto';
+import { CreateCampaignProgressDto } from './dto/create-campaign-progress.dto';
 
 @Controller('campaigns')
 export class CampaignController {
@@ -145,5 +147,19 @@ export class CampaignController {
       endDate ? new Date(endDate) : undefined,
       groupBy,
     );
+  }
+
+  @Post(':id/progress')
+  @UseGuards(JwtAuthGuard)
+  async addProgress(
+    @Param('id') id: string,
+    @Body() createProgressDto: CreateCampaignProgressDto,
+  ) {
+    return this.campaignService.addProgress(+id, createProgressDto);
+  }
+
+  @Get(':id/progress')
+  async getProgressHistory(@Param('id') id: string) {
+    return this.campaignService.getProgressHistory(+id);
   }
 }

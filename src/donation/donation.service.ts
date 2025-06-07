@@ -1,8 +1,8 @@
-import { Injectable, Inject, forwardRef } from '@nestjs/common';
+import { Inject, Injectable, forwardRef } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
+import { BadgeService } from 'src/badge/badge.service';
 import { CampaignService } from 'src/campaign/campaign.service';
 import { UsersService } from 'src/users/users.service';
-import { NotificationService } from 'src/notification/notification.service';
 import { DonationRepo } from './donation.repository';
 import { CreateDonationDto } from './dto/create-donation.dto';
 import { UpdateDonationDto } from './dto/update-donation.dto';
@@ -28,7 +28,7 @@ export class DonationService {
     @Inject(forwardRef(() => CampaignService))
     private readonly campaignService: CampaignService,
     private readonly userService: UsersService,
-    private readonly notificationService: NotificationService,
+    private readonly badgeService: BadgeService,
   ) {}
 
   async create(createDonationDto: CreateDonationDto & { userId: number }) {
@@ -37,6 +37,15 @@ export class DonationService {
     const campaign = await this.campaignService.findOne(
       createDonationDto.campaignId,
     );
+    const ethPrice = await this.campaignService.getEthPrice();
+    const totalDonated = await this.donationRepo.aggregateDonationsByUser(
+      createDonationDto.userId,
+    );
+    const amount: any = totalDonated._sum.amount ?? 0;
+    if (amount * ethPrice >= 1000000) {
+      await this.badgeService.awardBadgeToUser(createDonationDto.userId, 1);
+    }
+
     if (!campaign) throw new Error('Campaign not found');
     const user = await this.userService.findById(createDonationDto.userId);
     if (!user) throw new Error('User not found');

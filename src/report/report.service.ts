@@ -15,7 +15,12 @@ export class ReportService {
   }
 
   findAll(page: number, limit: number) {
-    return this.reportRepository.paginate(page, limit, {});
+    return this.reportRepository.paginate(page, limit, {
+      include: {
+        campaign: true,
+        user: true,
+      },
+    });
   }
 
   findOne(id: number) {

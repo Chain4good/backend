@@ -42,4 +42,10 @@ export class DonationRepo extends BaseRepository<
       orderBy: { donatedAt: 'desc' },
     });
   }
+  async aggregateDonationsByUser(userId: number) {
+    return this.prisma.donation.aggregate({
+      _sum: { amount: true },
+      where: { userId },
+    });
+  }
 }

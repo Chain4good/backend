@@ -14,6 +14,7 @@ import { CampaignRepo } from './campaign.repository';
 import { CreateCampaignDto } from './dto/create-campaign.dto';
 import { UpdateCampaignDto } from './dto/update-campaign.dto';
 import { CampaignCreatedEvent } from './events/campaign-created.event';
+import { CreateCampaignProgressDto } from './dto/create-campaign-progress.dto';
 
 interface CampaignWithRelations {
   id: number;
@@ -288,7 +289,7 @@ export class CampaignService {
   }
 
   async update(id: number, updateCampaignDto: UpdateCampaignDto) {
-    const { images, status, ...rest } = updateCampaignDto;
+    const { images, ...rest } = updateCampaignDto;
 
     const data: Prisma.CampaignUpdateInput = {
       ...rest,
@@ -301,7 +302,7 @@ export class CampaignService {
         : {}),
     };
 
-    if (status === 'FINISHED') {
+    if (updateCampaignDto.status === 'FINISHED') {
       const campaign = await this.campaignRepo.findOne(id);
       if (!campaign) {
         throw new Error('Campaign not found');
@@ -349,7 +350,7 @@ export class CampaignService {
     return vndAmount / ethPrice;
   }
 
-  private async getEthPrice(): Promise<number> {
+  async getEthPrice(): Promise<number> {
     try {
       const response = await fetch(
         'https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=vnd',
@@ -499,5 +500,92 @@ export class CampaignService {
     );
 
     return campaign;
+  }
+
+  async addProgress(
+    campaignId: number,
+    createProgressDto: CreateCampaignProgressDto,
+  ) {
+    // Kiểm tra campaign có tồn tại
+    const campaign = await this.findOne(campaignId);
+    if (!campaign) {
+      throw new Error('Campaign not found');
+    }
+
+    // Tạo progress mới
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-call
+    const progress = await this.prisma.campaignProgress.create({
+      data: {
+        ...createProgressDto,
+        campaign: {
+          connect: { id: campaignId },
+        },
+      },
+      include: {
+        campaign: {
+          select: {
+            title: true,
+            user: {
+              select: {
+                email: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    // Gửi email thông báo cho người donate
+    const donations =
+      await this.donationService.findAllUserDonationByCampaignId(campaignId);
+
+    // Gửi email tới tất cả người đã donate
+    await Promise.all(
+      donations.map(async (donation) => {
+        if (donation.user?.email) {
+          // await this.mailerService.sendMail({
+          //   to: donation.user.email,
+          //   subject: `Cập nhật mới từ chiến dịch: ${campaign.title}`,
+          //   template: 'campaign-progress-update',
+          //   context: {
+          //     campaignTitle: campaign.title,
+          //     progressTitle: progress.title,
+          //     progressDescription: progress.description,
+          //     images: progress.images,
+          //     documents: progress.documents,
+          //     date: progress.createdAt,
+          //   },
+          // });
+          await this.mailerService.sendMail(
+            donation.user.email,
+            `Cập nhật mới từ chiến dịch: ${campaign.title}`,
+            'campaign-progress-update',
+            {
+              campaignTitle: campaign.title,
+              progressTitle: progress.title,
+              progressDescription: progress.description,
+              images: progress.images,
+              documents: progress.documents,
+              date: progress.createdAt,
+            },
+          );
+        }
+      }),
+    );
+
+    return progress;
+  }
+
+  // eslint-disable-next-line @typescript-eslint/require-await
+  async getProgressHistory(campaignId: number) {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-call
+    return this.prisma.campaignProgress.findMany({
+      where: {
+        campaignId: campaignId,
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
   }
 }
