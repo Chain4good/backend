@@ -108,6 +108,7 @@ model Campaign {
   creatorAddress  String?
   tokenAddress    String?
   ethGoal         Decimal?       @db.Decimal(20, 8)
+  tokenGoal       Decimal?       @db.Decimal(20, 8)
   userId          Int
   categoryId      Int
   countryId       Int
@@ -152,6 +153,7 @@ model Donation {
   txHash           String?
   address          String?
   token            String?
+  tokenAddress     String?
 
   user       User     @relation(fields: [userId], references: [id])
   userId     Int

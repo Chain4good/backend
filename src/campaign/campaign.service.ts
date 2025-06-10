@@ -47,7 +47,11 @@ export class CampaignService {
   ) {}
 
   async create(
-    createCampaignDto: CreateCampaignDto & { userId: number; email: string },
+    createCampaignDto: CreateCampaignDto & {
+      userId: number;
+      email: string;
+      tokenSymbol?: string;
+    },
   ) {
     try {
       const {
@@ -61,7 +65,7 @@ export class CampaignService {
         ...rest
       } = createCampaignDto;
 
-      const ethGoal = await this.calculateEthGoal(rest.goal);
+      const ethGoal = await this.getPrice(rest.tokenSymbol || 'ETH');
 
       const campaign = await this.campaignRepo.create(
         {
@@ -345,21 +349,46 @@ export class CampaignService {
     return this.campaignRepo.delete(id);
   }
 
-  async calculateEthGoal(vndAmount: number): Promise<number> {
-    const ethPrice = await this.getEthPrice();
+  async calculateEthGoal(
+    vndAmount: number,
+    tokenSymbol: string,
+  ): Promise<number> {
+    const ethPrice = await this.getPrice(tokenSymbol);
     return vndAmount / ethPrice;
   }
 
-  async getEthPrice(): Promise<number> {
+  async getPrice(tokenSymbol: string): Promise<number> {
     try {
+      if (!tokenSymbol) {
+        throw new Error('Token symbol is required');
+      }
+      const mapSymbol = {
+        ETH: 'ethereum',
+        BTC: 'bitcoin',
+        USDT: 'tether',
+        BNB: 'binancecoin',
+        XRP: 'ripple',
+        ADA: 'cardano',
+        SOL: 'solana',
+        DOT: 'polkadot',
+        DOGE: 'dogecoin',
+        MATIC: 'matic-network',
+        TRX: 'tron',
+        LTC: 'litecoin',
+        AVAX: 'avalanche-2',
+        USDC: 'usd-coin',
+        LINK: 'chainlink',
+      };
+
       const response = await fetch(
-        'https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=vnd',
+        `https://api.coingecko.com/api/v3/simple/price?ids=${mapSymbol[tokenSymbol.toUpperCase()]}&vs_currencies=vnd`,
       );
       const data = await response.json();
-      return data.ethereum.vnd;
+      console.log('Price data:', data);
+      return data[mapSymbol[tokenSymbol.toUpperCase()]].vnd;
     } catch (error) {
-      console.error('Failed to fetch ETH price:', error);
-      throw new Error('Could not fetch ETH price');
+      console.error('Failed to fetch price:', error);
+      throw new Error('Could not fetch price');
     }
   }
 
@@ -396,7 +425,6 @@ export class CampaignService {
       ORDER BY ${Prisma.raw(grouping)} ASC
     `;
 
-    // Xử lý kết quả để điền các ngày thiếu
     const result = this.fillMissingDates(
       donationHistory,
       startDate || new Date(donationHistory[0]?.date),
@@ -513,7 +541,6 @@ export class CampaignService {
     }
 
     // Tạo progress mới
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-call
     const progress = await this.prisma.campaignProgress.create({
       data: {
         ...createProgressDto,
@@ -576,9 +603,7 @@ export class CampaignService {
     return progress;
   }
 
-  // eslint-disable-next-line @typescript-eslint/require-await
   async getProgressHistory(campaignId: number) {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-call
     return this.prisma.campaignProgress.findMany({
       where: {
         campaignId: campaignId,

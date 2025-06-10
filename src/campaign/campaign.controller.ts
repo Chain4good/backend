@@ -111,8 +111,11 @@ export class CampaignController {
   }
 
   @Get('calculate-eth-goal')
-  calculateEthGoal(@Query('vndAmount') vndAmount: number) {
-    return this.campaignService.calculateEthGoal(vndAmount);
+  calculateEthGoal(
+    @Query('vndAmount') vndAmount: number,
+    @Query('tokenSymbol') tokenSymbol: string,
+  ) {
+    return this.campaignService.calculateEthGoal(vndAmount, tokenSymbol);
   }
 
   @Get(':id')

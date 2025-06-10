@@ -37,7 +37,9 @@ export class DonationService {
     const campaign = await this.campaignService.findOne(
       createDonationDto.campaignId,
     );
-    const ethPrice = await this.campaignService.getEthPrice();
+    const ethPrice = await this.campaignService.getPrice(
+      createDonationDto.token || 'ETH',
+    );
     const totalDonated = await this.donationRepo.aggregateDonationsByUser(
       createDonationDto.userId,
     );
