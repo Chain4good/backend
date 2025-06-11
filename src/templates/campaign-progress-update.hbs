@@ -1,25 +1,31 @@
-<h2>Cập nhật mới từ chiến dịch {{campaignTitle}}</h2>
+<div>
+  <h2>Cập nhật tiến độ chiến dịch {{campaignTitle}}</h2>
 
-<h3>{{progressTitle}}</h3>
+  <h3>{{progressTitle}}</h3>
 
-<p>{{progressDescription}}</p>
+  <div class='progress-content'>
+    <p>{{progressDescription}}</p>
 
-{{#if images.length}}
-  <h4>Hình ảnh cập nhật:</h4>
-  <div>
-    {{#each images}}
-      <img src='{{this}}' style='max-width: 300px; margin: 10px;' />
-    {{/each}}
+    {{#if images.length}}
+      <div class='images'>
+        <h4>Hình ảnh cập nhật:</h4>
+        {{#each images}}
+          <img src='{{this}}' style='max-width: 300px; margin: 10px' />
+        {{/each}}
+      </div>
+    {{/if}}
+
+    {{#if documents.length}}
+      <div class='documents'>
+        <h4>Tài liệu đính kèm:</h4>
+        <ul>
+          {{#each documents}}
+            <li><a href='{{this}}'>Xem tài liệu</a></li>
+          {{/each}}
+        </ul>
+      </div>
+    {{/if}}
   </div>
-{{/if}}
 
-{{#if documents.length}}
-  <h4>Tài liệu đính kèm:</h4>
-  <ul>
-    {{#each documents}}
-      <li><a href='{{this}}'>Xem tài liệu</a></li>
-    {{/each}}
-  </ul>
-{{/if}}
-
-<p>Thời gian cập nhật: {{date}}</p>
+  <p class='date'>Thời gian cập nhật: {{date}}</p>
+</div>

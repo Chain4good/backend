@@ -91,8 +91,7 @@ model User {
 }
 
 model Campaign {
-  id Int @id @default(autoincrement())
-
+  id              Int            @id @default(autoincrement())
   title           String
   description     String
   goal            Decimal        @db.Decimal(20, 2)
@@ -103,6 +102,9 @@ model Campaign {
   createdAt       DateTime       @default(now())
   status          CampaignStatus @default(PENDING)
   raisedAmount    Decimal        @default(0) @db.Decimal(20, 2)
+  tokenGoal       String?
+  tokenSymbol     String?
+  tokenDecimals   Int?
   chainCampaignId Int?
   txHash          String?
   creatorAddress  String?
@@ -296,12 +298,12 @@ model UserBadge {
 model CampaignProgress {
   id          Int      @id @default(autoincrement())
   title       String
-  description String   @db.Text
+  description String
   images      String[]
   documents   String[]
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  campaignId Int
   campaign   Campaign @relation(fields: [campaignId], references: [id])
+  campaignId Int
 }

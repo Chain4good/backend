@@ -79,4 +79,16 @@ export class CreateCampaignDto {
   @IsString()
   @IsOptional()
   tokenAddress: string;
+
+  @IsString()
+  @IsOptional()
+  tokenGoal: string;
+
+  @IsString()
+  @IsOptional()
+  tokenSymbol: string;
+
+  @IsInt()
+  @IsOptional()
+  tokenDecimals: number;
 }

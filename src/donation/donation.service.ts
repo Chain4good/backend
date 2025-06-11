@@ -34,21 +34,21 @@ export class DonationService {
   async create(createDonationDto: CreateDonationDto & { userId: number }) {
     const donation =
       await this.createDonationUseCase.execute(createDonationDto);
-    const campaign = await this.campaignService.findOne(
-      createDonationDto.campaignId,
-    );
-    const ethPrice = await this.campaignService.getEthPrice();
-    const totalDonated = await this.donationRepo.aggregateDonationsByUser(
-      createDonationDto.userId,
-    );
-    const amount: any = totalDonated._sum.amount ?? 0;
-    if (amount * ethPrice >= 1000000) {
-      await this.badgeService.awardBadgeToUser(createDonationDto.userId, 1);
-    }
+    // const campaign = await this.campaignService.findOne(
+    //   createDonationDto.campaignId,
+    // );
+    // const ethPrice = await this.campaignService.getEthPrice();
+    // const totalDonated = await this.donationRepo.aggregateDonationsByUser(
+    //   createDonationDto.userId,
+    // );
+    // const amount: any = totalDonated._sum.amount ?? 0;
+    // if (amount * ethPrice >= 1000000) {
+    //   await this.badgeService.awardBadgeToUser(createDonationDto.userId, 1);
+    // }
 
-    if (!campaign) throw new Error('Campaign not found');
-    const user = await this.userService.findById(createDonationDto.userId);
-    if (!user) throw new Error('User not found');
+    // if (!campaign) throw new Error('Campaign not found');
+    // const user = await this.userService.findById(createDonationDto.userId);
+    // if (!user) throw new Error('User not found');
     return donation;
   }
 

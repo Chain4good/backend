@@ -1,4 +1,4 @@
-import { IsArray, IsNotEmpty, IsString } from 'class-validator';
+import { IsString, IsNotEmpty, IsArray, IsOptional } from 'class-validator';
 
 export class CreateCampaignProgressDto {
   @IsString()
@@ -14,5 +14,6 @@ export class CreateCampaignProgressDto {
   images: string[];
 
   @IsArray()
-  documents: string[];
+  @IsOptional()
+  documents?: string[];
 }

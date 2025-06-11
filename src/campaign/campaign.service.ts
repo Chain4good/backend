@@ -2,7 +2,7 @@
 /* eslint-disable @typescript-eslint/no-unsafe-argument */
 /* eslint-disable @typescript-eslint/no-unsafe-return */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { CampaignStatus, Prisma } from '@prisma/client';
 import { AiService } from 'src/ai/ai.service';
@@ -350,16 +350,38 @@ export class CampaignService {
     return vndAmount / ethPrice;
   }
 
+  async calculateGoal(vndAmount: number, token: string): Promise<number> {
+    const tokenPrice = await this.getTokenPrice(token);
+    return vndAmount / tokenPrice;
+  }
+
   async getEthPrice(): Promise<number> {
     try {
       const response = await fetch(
         'https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=vnd',
       );
       const data = await response.json();
+
       return data.ethereum.vnd;
     } catch (error) {
       console.error('Failed to fetch ETH price:', error);
       throw new Error('Could not fetch ETH price');
+    }
+  }
+
+  async getTokenPrice(token: string): Promise<number> {
+    try {
+      const response = await fetch(
+        `https://api.coingecko.com/api/v3/simple/price?ids=${token}&vs_currencies=vnd`,
+      );
+      const data = await response.json();
+      if (!data[token] || !data[token].vnd) {
+        throw new Error(`Token ${token} not found`);
+      }
+      return data[token].vnd;
+    } catch (error) {
+      console.error(`Failed to fetch ${token} price:`, error);
+      throw new Error(`Could not fetch ${token} price`);
     }
   }
 
@@ -506,14 +528,13 @@ export class CampaignService {
     campaignId: number,
     createProgressDto: CreateCampaignProgressDto,
   ) {
-    // Kiểm tra campaign có tồn tại
+    // Check if campaign exists
     const campaign = await this.findOne(campaignId);
     if (!campaign) {
-      throw new Error('Campaign not found');
+      throw new NotFoundException('Campaign not found');
     }
 
-    // Tạo progress mới
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-call
+    // Create progress entry
     const progress = await this.prisma.campaignProgress.create({
       data: {
         ...createProgressDto,
@@ -523,39 +544,21 @@ export class CampaignService {
       },
       include: {
         campaign: {
-          select: {
-            title: true,
-            user: {
-              select: {
-                email: true,
-              },
-            },
+          include: {
+            user: true,
           },
         },
       },
     });
 
-    // Gửi email thông báo cho người donate
-    const donations =
+    // Get all donors for notification
+    const donors =
       await this.donationService.findAllUserDonationByCampaignId(campaignId);
 
-    // Gửi email tới tất cả người đã donate
+    // Notify all donors about the update
     await Promise.all(
-      donations.map(async (donation) => {
+      donors.map(async (donation) => {
         if (donation.user?.email) {
-          // await this.mailerService.sendMail({
-          //   to: donation.user.email,
-          //   subject: `Cập nhật mới từ chiến dịch: ${campaign.title}`,
-          //   template: 'campaign-progress-update',
-          //   context: {
-          //     campaignTitle: campaign.title,
-          //     progressTitle: progress.title,
-          //     progressDescription: progress.description,
-          //     images: progress.images,
-          //     documents: progress.documents,
-          //     date: progress.createdAt,
-          //   },
-          // });
           await this.mailerService.sendMail(
             donation.user.email,
             `Cập nhật mới từ chiến dịch: ${campaign.title}`,
@@ -576,16 +579,16 @@ export class CampaignService {
     return progress;
   }
 
-  // eslint-disable-next-line @typescript-eslint/require-await
   async getProgressHistory(campaignId: number) {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-call
-    return this.prisma.campaignProgress.findMany({
+    const progresses = await this.prisma.campaignProgress.findMany({
       where: {
-        campaignId: campaignId,
+        campaignId,
       },
       orderBy: {
         createdAt: 'desc',
       },
     });
+
+    return progresses;
   }
 }
