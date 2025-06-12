@@ -270,6 +270,7 @@ export class CampaignService {
           id: true,
           name: true,
           email: true,
+          image: true,
         },
       },
       donations: {
