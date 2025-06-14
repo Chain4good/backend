@@ -22,11 +22,13 @@ import { TopicModule } from './topic/topic.module';
 import { PostModule } from './post/post.module';
 import { GeminiModule } from './gemini/gemini.module';
 import { ReportModule } from './report/report.module';
+import { RoleModule } from './role/role.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
-      isGlobal: true,
+      isGlobal: true, // Makes config available globally
+      envFilePath: '.env',
     }),
     PrismaModule,
     UsersModule,
@@ -48,7 +50,7 @@ import { ReportModule } from './report/report.module';
     PostModule,
     GeminiModule,
     ReportModule,
-    ReportModule,
+    RoleModule,
   ],
   controllers: [AppController],
   providers: [AppService],

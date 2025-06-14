@@ -15,6 +15,9 @@ export class UsersService {
   async findByEmail(email: string): Promise<User | null> {
     return this.prisma.user.findUnique({
       where: { email },
+      include: {
+        role: true, // Include role information if needed
+      },
     });
   }
 
@@ -74,6 +77,13 @@ export class UsersService {
         ...(email && { email: { contains: email, mode: 'insensitive' } }),
         ...(role && { roleId: Number(role) }),
       },
+    });
+  }
+
+  async remove(id: number) {
+    return this.prisma.user.update({
+      where: { id },
+      data: { isActive: false },
     });
   }
 }

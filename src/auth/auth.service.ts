@@ -2,6 +2,7 @@ import {
   Injectable,
   UnauthorizedException,
   ConflictException,
+  InternalServerErrorException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
@@ -10,6 +11,7 @@ import { UserRegisterDTO } from './dtos/user-register.dto';
 import { RefreshTokenService } from './refresh-token.service';
 import { VerifyOTPDto } from './dtos/verify-otp.dto';
 import { OTPService } from 'src/otp/otp.service';
+import { RoleService } from 'src/role/role.service';
 
 @Injectable()
 export class AuthService {
@@ -18,6 +20,7 @@ export class AuthService {
     private jwtService: JwtService,
     private otpService: OTPService,
     private refreshTokenService: RefreshTokenService,
+    private roleService: RoleService, // Ensure RoleService is injected
   ) {}
 
   async validateUser(email: string, password: string): Promise<any> {
@@ -31,7 +34,28 @@ export class AuthService {
   }
 
   async login(user: { email: string; id: number }) {
-    const payload = { email: user.email, sub: user.id };
+    const userRecord = await this.usersService.findByEmail(user.email);
+    if (!userRecord) {
+      throw new UnauthorizedException('Invalid email or password');
+    }
+    if (!userRecord.isVerified) {
+      throw new UnauthorizedException('Email not verified');
+    }
+    if (!userRecord.isActive) {
+      throw new UnauthorizedException('User is blocked');
+    }
+    const role = await this.roleService.findOneBy({ id: userRecord.roleId });
+    if (!role) {
+      throw new InternalServerErrorException('Role not found');
+    }
+    if (role.name !== 'USER' && role.name !== 'ADMIN') {
+      throw new UnauthorizedException('Unauthorized role');
+    }
+    const payload = {
+      email: user.email,
+      sub: user.id,
+      role: role.name,
+    };
     const accessToken = this.jwtService.sign(payload);
 
     const refreshToken = await this.refreshTokenService.createRefreshToken(
@@ -39,7 +63,7 @@ export class AuthService {
     );
 
     return {
-      user,
+      user: { ...user, role: role.name },
       access_token: accessToken,
       refresh_token: refreshToken,
     };
@@ -51,8 +75,21 @@ export class AuthService {
     if (!user) {
       throw new UnauthorizedException('Invalid refresh token');
     }
+    const role = await this.roleService.findOneBy({ id: user.roleId });
+    if (!role) {
+      throw new InternalServerErrorException('Role not found');
+    }
+    if (role.name !== 'USER' && role.name !== 'ADMIN') {
+      throw new UnauthorizedException('Unauthorized role');
+    }
+    if (!user.isActive) {
+      throw new UnauthorizedException('User is blocked');
+    }
+    if (!user.isVerified) {
+      throw new UnauthorizedException('Email not verified');
+    }
 
-    const payload = { email: user.email, sub: user.id };
+    const payload = { email: user.email, sub: user.id, role: role.name };
     const accessToken = this.jwtService.sign(payload);
 
     return {
@@ -98,9 +135,16 @@ export class AuthService {
       throw new UnauthorizedException('Invalid or expired OTP');
     }
 
+    const defaultRole = await this.roleService.findOneBy({ name: 'USER' });
+
+    if (!defaultRole) {
+      throw new InternalServerErrorException('Default role "USER" not found');
+    }
+
     const user = await this.usersService.create({
       ...userData,
       isVerified: true,
+      roleId: defaultRole.id,
     });
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars

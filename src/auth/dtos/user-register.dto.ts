@@ -46,4 +46,7 @@ export class UserRegisterDTO {
   @IsString()
   @IsOptional()
   phoneNumber?: string;
+
+  @IsOptional()
+  roleId?: number;
 }

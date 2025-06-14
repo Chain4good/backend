@@ -529,13 +529,11 @@ export class CampaignService {
     campaignId: number,
     createProgressDto: CreateCampaignProgressDto,
   ) {
-    // Check if campaign exists
     const campaign = await this.findOne(campaignId);
     if (!campaign) {
       throw new NotFoundException('Campaign not found');
     }
 
-    // Create progress entry
     const progress = await this.prisma.campaignProgress.create({
       data: {
         ...createProgressDto,
@@ -552,11 +550,9 @@ export class CampaignService {
       },
     });
 
-    // Get all donors for notification
     const donors =
       await this.donationService.findAllUserDonationByCampaignId(campaignId);
 
-    // Notify all donors about the update
     await Promise.all(
       donors.map(async (donation) => {
         if (donation.user?.email) {
@@ -591,5 +587,23 @@ export class CampaignService {
     });
 
     return progresses;
+  }
+
+  async generateFinancialReport(campaignId: number) {
+    const campaign = await this.campaignRepo.findOne(campaignId);
+    if (!campaign) {
+      throw new NotFoundException('Campaign not found');
+    }
+
+    const donationHistory = await this.getDonationHistory(campaignId);
+
+    return {
+      campaignId: campaign.id,
+      campaignTitle: campaign.title,
+      totalDonatedAmount: donationHistory.summary.totalAmount,
+      totalDonationsCount: donationHistory.summary.totalDonations,
+      averageDonationAmount: donationHistory.summary.averageAmount,
+      detailedDonationHistory: donationHistory.data,
+    };
   }
 }

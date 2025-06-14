@@ -3,8 +3,12 @@ import { AiService } from './ai.service';
 import { AnalyzeCampaignDto } from './dto/analyze-campaign.dto';
 import { GetUser, UserExtract } from 'src/auth/decorators/auth.decorators';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
+import { RolesGuard } from 'src/auth/guards/roles.guard';
+import { Roles } from 'src/auth/decorators/roles.decorator';
 
 @Controller('ai')
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles('ADMIN', 'USER')
 export class AiController {
   constructor(private readonly aiService: AiService) {}
 
@@ -29,7 +33,6 @@ export class AiController {
   }
 
   @Get('recommendations')
-  @UseGuards(JwtAuthGuard)
   async getRecommendations(@GetUser() user: UserExtract) {
     return this.aiService.getPersonalizedRecommendations(+user.id);
   }

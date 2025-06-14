@@ -17,6 +17,8 @@ import { CampaignService } from './campaign.service';
 import { CreateCampaignDto } from './dto/create-campaign.dto';
 import { UpdateCampaignDto } from './dto/update-campaign.dto';
 import { CreateCampaignProgressDto } from './dto/create-campaign-progress.dto';
+import { RolesGuard } from 'src/auth/guards/roles.guard';
+import { Roles } from 'src/auth/decorators/roles.decorator';
 
 @Controller('campaigns')
 export class CampaignController {
@@ -24,6 +26,7 @@ export class CampaignController {
 
   @Post()
   @UseGuards(JwtAuthGuard)
+  @Roles('USER', 'ADMIN')
   async create(
     @Body() createCampaignDto: CreateCampaignDto,
     @GetUser() user: UserExtract,
@@ -94,6 +97,7 @@ export class CampaignController {
 
   @Get('my-campaigns')
   @UseGuards(JwtAuthGuard)
+  @Roles('USER', 'ADMIN')
   async findMyCampaigns(
     @GetUser() user: UserExtract,
     @Query('page') page: number,
@@ -123,12 +127,15 @@ export class CampaignController {
     return this.campaignService.calculateGoal(vndAmount, token);
   }
 
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.campaignService.findOne(+id);
   }
 
   @Patch(':id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN', 'USER')
   async update(
     @Param('id') id: string,
     @Body() updateCampaignDto: UpdateCampaignDto,
@@ -136,8 +143,9 @@ export class CampaignController {
     const campaign = await this.campaignService.update(+id, updateCampaignDto);
     return campaign;
   }
-
   @Delete(':id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN')
   remove(@Param('id') id: string) {
     return this.campaignService.remove(+id);
   }
@@ -169,5 +177,12 @@ export class CampaignController {
   @Get(':id/progress')
   async getProgressHistory(@Param('id') id: string) {
     return this.campaignService.getProgressHistory(+id);
+  }
+
+  @Get(':id/financial-report')
+  @UseGuards(JwtAuthGuard)
+  @Roles('USER', 'ADMIN')
+  async getFinancialReport(@Param('id') id: string) {
+    return this.campaignService.generateFinancialReport(+id);
   }
 }

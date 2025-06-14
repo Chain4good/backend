@@ -30,28 +30,31 @@ export class AuthController {
     @GetUser() userReq: { email: string; id: number },
     @Res({ passthrough: true }) res: Response,
   ) {
-    const { user, access_token, refresh_token } =
-      await this.authService.login(userReq);
+    try {
+      const { user, access_token, refresh_token } =
+        await this.authService.login(userReq);
 
-    // Set access token in HTTP-only cookie
-    res.cookie('access_token', access_token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      path: '/',
-      maxAge: 1 * 60 * 60 * 1000, // 1 hour
-      // maxAge: 30 * 1000, // 30 second
-    });
+      res.cookie('access_token', access_token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        path: '/',
+        maxAge: 1 * 60 * 60 * 1000, // 1 hour
+      });
 
-    res.cookie('refresh_token', refresh_token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      path: '/',
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-    });
+      res.cookie('refresh_token', refresh_token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        path: '/',
+        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+      });
 
-    return user;
+      return user;
+    } catch (error) {
+      console.log('Login error:', error);
+      throw error;
+    }
   }
 
   @Post('refresh')
