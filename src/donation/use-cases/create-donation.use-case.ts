@@ -18,8 +18,14 @@ export class CreateDonationUseCase {
     private readonly campaignService: CampaignService,
   ) {}
 
-  async execute(createDonationDto: CreateDonationDto & { userId: number }) {
-    const { userId, campaignId, ...rest } = createDonationDto;
+  async execute(
+    createDonationDto: CreateDonationDto & {
+      userId: number;
+      tokenName?: string;
+    },
+  ) {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { userId, campaignId, tokenName, ...rest } = createDonationDto;
 
     const donation = await this.donationRepo.create({
       ...rest,

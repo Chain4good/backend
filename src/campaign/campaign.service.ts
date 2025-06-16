@@ -271,6 +271,18 @@ export class CampaignService {
           name: true,
           email: true,
           image: true,
+          UserBadge: {
+            select: {
+              badge: {
+                select: {
+                  id: true,
+                  name: true,
+                  description: true,
+                  iconUrl: true,
+                },
+              },
+            },
+          },
         },
       },
       donations: {

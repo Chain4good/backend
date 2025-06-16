@@ -21,12 +21,13 @@ export class DonationController {
   @Post()
   @UseGuards(JwtAuthGuard)
   create(
-    @Body() createDonationDto: CreateDonationDto,
+    @Body() createDonationDto: CreateDonationDto & { tokenName?: string },
     @GetUser() user: UserExtract,
   ) {
     return this.donationService.create({
       ...createDonationDto,
       userId: user.id,
+      tokenName: createDonationDto.tokenName,
     });
   }
 

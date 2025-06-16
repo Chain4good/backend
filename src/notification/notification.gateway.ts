@@ -24,7 +24,7 @@ export class NotificationGateway
   private userSockets: Map<number, string[]> = new Map();
 
   handleConnection(client: Socket): void {
-    console.log(`Client connected: ${client.id}`);
+    // console.log(`Client connected: ${client.id}`);
   }
 
   @SubscribeMessage('join')

@@ -24,6 +24,14 @@ export class UsersService {
   async findById(id: number): Promise<User | null> {
     return this.prisma.user.findUnique({
       where: { id },
+      include: {
+        role: true, // Include role information if needed
+        UserBadge: {
+          include: {
+            badge: true, // Include badge information if needed
+          },
+        },
+      },
     });
   }
 

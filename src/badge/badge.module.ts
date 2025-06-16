@@ -1,12 +1,24 @@
 import { Module } from '@nestjs/common';
+import { BadgeRulesService } from './badge-rules.service';
+import { BadgeController } from './badge.controller';
+import { BadgeRepository } from './badge.repository';
 import { BadgeService } from './badge.service';
 import { UserBadgeRepository } from './user-badge.repository';
-import { BadgeRepository } from './badge.repository';
 
 @Module({
   imports: [],
-  controllers: [],
-  providers: [BadgeService, BadgeRepository, UserBadgeRepository],
-  exports: [BadgeService, BadgeRepository, UserBadgeRepository], // Export all required providers
+  controllers: [BadgeController],
+  providers: [
+    BadgeService,
+    BadgeRepository,
+    UserBadgeRepository,
+    BadgeRulesService,
+  ],
+  exports: [
+    BadgeService,
+    BadgeRepository,
+    UserBadgeRepository,
+    BadgeRulesService,
+  ],
 })
 export class BadgeModule {}

@@ -88,6 +88,17 @@ export class CommentService {
             id: true,
             name: true,
             image: true,
+            UserBadge: {
+              select: {
+                badge: {
+                  select: {
+                    id: true,
+                    name: true,
+                    iconUrl: true,
+                  },
+                },
+              },
+            },
           },
         },
         replies: {
