@@ -36,4 +36,9 @@ export class AiController {
   async getRecommendations(@GetUser() user: UserExtract) {
     return this.aiService.getPersonalizedRecommendations(+user.id);
   }
+
+  @Get('campaigns/:campaignId/audio')
+  async textToSpeech(@Param('campaignId') campaignId: number) {
+    return this.aiService.textToSpeech(+campaignId);
+  }
 }

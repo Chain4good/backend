@@ -271,4 +271,20 @@ export class AiService {
       throw new Error('Không thể tạo đề xuất chiến dịch');
     }
   }
+
+  async textToSpeech(campaignId: number) {
+    const campaign = await this.campaignService.findOne(campaignId);
+    if (!campaign) {
+      throw new Error('Campaign not found');
+    }
+
+    if (campaign.audio) {
+      return campaign.audio;
+    }
+    const article = campaign.description;
+    if (!article || article.length < 50) {
+      throw new Error('Article content is too short for TTS');
+    }
+    return await this.geminiService.tts(article, campaignId);
+  }
 }

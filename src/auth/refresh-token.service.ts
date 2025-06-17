@@ -43,4 +43,10 @@ export class RefreshTokenService {
   async deleteRefreshToken(token: string) {
     await this.prisma.refreshToken.delete({ where: { token } });
   }
+
+  async revokeAllUserTokens(userId: number): Promise<void> {
+    await this.prisma.refreshToken.deleteMany({
+      where: { userId },
+    });
+  }
 }

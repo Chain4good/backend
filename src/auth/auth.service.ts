@@ -3,6 +3,8 @@ import {
   UnauthorizedException,
   ConflictException,
   InternalServerErrorException,
+  NotFoundException,
+  BadRequestException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
@@ -12,6 +14,23 @@ import { RefreshTokenService } from './refresh-token.service';
 import { VerifyOTPDto } from './dtos/verify-otp.dto';
 import { OTPService } from 'src/otp/otp.service';
 import { RoleService } from 'src/role/role.service';
+import { verifyMessage } from 'ethers';
+import { PrismaService } from 'src/prisma/prisma.service';
+import { ConfigService } from '@nestjs/config';
+
+interface GoogleUser {
+  email: string;
+  name: string;
+  image?: string;
+  googleAccessToken: string;
+}
+
+interface FacebookUser {
+  email: string;
+  name: string;
+  image?: string;
+  facebookAccessToken: string;
+}
 
 @Injectable()
 export class AuthService {
@@ -20,7 +39,9 @@ export class AuthService {
     private jwtService: JwtService,
     private otpService: OTPService,
     private refreshTokenService: RefreshTokenService,
-    private roleService: RoleService, // Ensure RoleService is injected
+    private roleService: RoleService,
+    private prisma: PrismaService,
+    private configService: ConfigService,
   ) {}
 
   async validateUser(email: string, password: string): Promise<any> {
@@ -31,6 +52,40 @@ export class AuthService {
       return result;
     }
     return null;
+  }
+
+  async web3Login(address: string, signature: string) {
+    const message = `Chain4Good login: ${address}`;
+
+    const recoveredAddress = verifyMessage(message, signature);
+    if (recoveredAddress.toLowerCase() !== address.toLowerCase()) {
+      throw new UnauthorizedException('Invalid signature');
+    }
+
+    let user = await this.usersService.findByAddress(address);
+    if (!user) {
+      user = await this.usersService.create({
+        address,
+        name: 'Người dùng Web3',
+        email: `${address}@web3.io`,
+        isVerified: true,
+        isActive: true,
+        password: '', // or null
+        roleId: (await this.roleService.findOneBy({ name: 'USER' }))?.id,
+      });
+    }
+
+    const payload = { sub: user.id, email: user.email, role: 'USER' };
+    const accessToken = this.jwtService.sign(payload);
+    const refreshToken = await this.refreshTokenService.createRefreshToken(
+      user.id,
+    );
+
+    return {
+      user,
+      access_token: accessToken,
+      refresh_token: refreshToken,
+    };
   }
 
   async login(user: { email: string; id: number }) {
@@ -160,5 +215,192 @@ export class AuthService {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { password, ...result } = user;
     return result;
+  }
+
+  async validateGoogleUser(googleData: {
+    email: string;
+    name: string;
+    image?: string;
+  }) {
+    try {
+      let user = await this.prisma.user.findUnique({
+        where: { email: googleData.email },
+        include: { role: true },
+      });
+
+      if (!user) {
+        // Get default USER role first
+        const defaultRole = await this.prisma.role.findUnique({
+          where: { name: 'USER' },
+        });
+
+        if (!defaultRole) {
+          throw new InternalServerErrorException(
+            'Default role "USER" not found',
+          );
+        }
+
+        // Create new user if doesn't exist
+        const createdUser = await this.prisma.user.create({
+          data: {
+            email: googleData.email,
+            name: googleData.name,
+            image: googleData.image || '',
+            isVerified: true,
+            isActive: true,
+            password: '',
+            // Use address derived from email for Google users
+            address: `google_${googleData.email.replace('@', '_')}`,
+            roleId: defaultRole.id,
+          },
+          include: {
+            role: true,
+          },
+        });
+
+        user = createdUser;
+      }
+
+      if (!user || !user.role) {
+        throw new UnauthorizedException('Failed to create/retrieve user');
+      }
+
+      const refreshToken = await this.refreshTokenService.createRefreshToken(
+        user.id,
+      );
+
+      // Generate tokens
+      const payload = {
+        email: user.email,
+        sub: user.id,
+        role: user.role.name,
+      };
+
+      const access_token = this.jwtService.sign(payload);
+
+      return {
+        user,
+        access_token,
+        refresh_token: refreshToken,
+      };
+    } catch (error) {
+      if (error instanceof UnauthorizedException) {
+        throw error;
+      }
+      throw new UnauthorizedException('Google authentication failed');
+    }
+  }
+
+  async unlinkGoogle(userId: number) {
+    try {
+      // Check if user exists and was created with Google
+      const user = await this.prisma.user.findUnique({
+        where: { id: userId },
+        include: { role: true },
+      });
+
+      if (!user) {
+        throw new NotFoundException('User not found');
+      }
+
+      // Check if email contains @gmail.com
+      if (!user.email.endsWith('@gmail.com')) {
+        throw new BadRequestException(
+          'This account was not created with Google',
+        );
+      }
+
+      // Generate temporary email and clear Google-specific data
+      const tempEmail = `unlinked_${user.id}_${Date.now()}@temp.com`;
+
+      await this.prisma.user.update({
+        where: { id: userId },
+        data: {
+          email: tempEmail,
+          image: null, // Clear Google profile image
+          isVerified: false, // Require new verification for future email
+        },
+      });
+
+      // Revoke all existing tokens
+      await this.refreshTokenService.revokeAllUserTokens(userId);
+
+      return { message: 'Google account unlinked successfully' };
+    } catch (error) {
+      if (
+        error instanceof NotFoundException ||
+        error instanceof BadRequestException
+      ) {
+        throw error;
+      }
+      throw new InternalServerErrorException('Failed to unlink Google account');
+    }
+  }
+
+  async validateFacebookUser(facebookUser: FacebookUser) {
+    try {
+      let user = await this.prisma.user.findUnique({
+        where: { email: facebookUser.email },
+        include: { role: true },
+      });
+
+      if (!user) {
+        const defaultRole = await this.prisma.role.findUnique({
+          where: { name: 'USER' },
+        });
+
+        if (!defaultRole) {
+          throw new InternalServerErrorException(
+            'Default role "USER" not found',
+          );
+        }
+
+        // Create new user if doesn't exist
+        const createdUser = await this.prisma.user.create({
+          data: {
+            email: facebookUser.email,
+            name: facebookUser.name,
+            image: facebookUser.image || '',
+            isVerified: true,
+            isActive: true,
+            password: '',
+            address: `facebook_${facebookUser.email.replace('@', '_')}`,
+            roleId: defaultRole.id,
+          },
+          include: {
+            role: true,
+          },
+        });
+
+        user = createdUser;
+      }
+
+      if (!user || !user.role) {
+        throw new UnauthorizedException('Failed to create/retrieve user');
+      }
+
+      const refreshToken = await this.refreshTokenService.createRefreshToken(
+        user.id,
+      );
+
+      const payload = {
+        email: user.email,
+        sub: user.id,
+        role: user.role.name,
+      };
+
+      const access_token = this.jwtService.sign(payload);
+
+      return {
+        user,
+        access_token,
+        refresh_token: refreshToken,
+      };
+    } catch (error) {
+      if (error instanceof UnauthorizedException) {
+        throw error;
+      }
+      throw new UnauthorizedException('Facebook authentication failed');
+    }
   }
 }

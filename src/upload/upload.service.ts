@@ -3,6 +3,7 @@ import { Injectable, OnModuleInit } from '@nestjs/common';
 import { v2 as cloudinary } from 'cloudinary';
 import { createReadStream } from 'fs';
 import { ConfigService } from '@nestjs/config';
+import * as path from 'path';
 
 @Injectable()
 export class UploadService implements OnModuleInit {
@@ -17,7 +18,6 @@ export class UploadService implements OnModuleInit {
     const apiSecret: string | undefined = this.configService.get(
       'CLOUDINARY_API_SECRET',
     );
-
 
     if (!cloudName || !apiKey || !apiSecret) {
       throw new Error('Missing required Cloudinary configuration');
@@ -42,6 +42,28 @@ export class UploadService implements OnModuleInit {
           resolve(result);
         },
       );
+      createReadStream(file.path).pipe(uploadStream);
+    });
+  }
+
+  async uploadAudio(file: {
+    path: string;
+    filename: string;
+    mimetype: string;
+  }) {
+    return new Promise((resolve, reject) => {
+      const uploadStream = cloudinary.uploader.upload_stream(
+        {
+          folder: 'campaign-audio',
+          resource_type: 'auto',
+          public_id: path.parse(file.filename).name,
+        },
+        (error, result) => {
+          if (error) return reject(error);
+          resolve(result);
+        },
+      );
+
       createReadStream(file.path).pipe(uploadStream);
     });
   }

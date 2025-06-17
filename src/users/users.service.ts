@@ -34,6 +34,9 @@ export class UsersService {
       },
     });
   }
+  async findByAddress(address: string) {
+    return this.prisma.user.findFirst({ where: { address } });
+  }
 
   async create(userRegisterDto: UserRegisterDTO): Promise<User> {
     const { email, password, name, address } = userRegisterDto;

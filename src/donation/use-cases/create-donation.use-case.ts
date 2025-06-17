@@ -24,25 +24,35 @@ export class CreateDonationUseCase {
       tokenName?: string;
     },
   ) {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { userId, campaignId, tokenName, ...rest } = createDonationDto;
 
-    const donation = await this.donationRepo.create({
-      ...rest,
-      user: {
-        connect: { id: userId },
-      },
-      campaign: {
-        connect: { id: campaignId },
-      },
-    });
+    try {
+      // Add donatedAt field with current timestamp
+      const donation = await this.donationRepo.create({
+        ...rest,
+        donatedAt: new Date(), // Add this line
+        user: {
+          connect: { id: userId },
+        },
+        campaign: {
+          connect: { id: campaignId },
+        },
+      });
 
-    await this.campaignService.update(campaignId, {
-      totalDonated: {
-        increment: rest.amount,
-      },
-    } as any);
+      await this.campaignService.update(campaignId, {
+        totalDonated: {
+          increment: rest.amount,
+        },
+      } as any);
 
-    return donation;
+      return donation;
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError) {
+        if (error.code === 'P2002') {
+          throw new ConflictException('Donation already exists');
+        }
+      }
+      throw error;
+    }
   }
 }
