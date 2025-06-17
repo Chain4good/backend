@@ -33,4 +33,31 @@ export class CampaignEmailService {
       },
     });
   }
+
+  async sendDeadlineReminderEmail(
+    userEmail: string,
+    campaignName: string,
+    daysLeft: number,
+  ) {
+    await this.mailerService.sendMail({
+      to: userEmail,
+      subject: 'Campaign Deadline Approaching',
+      template: 'campaign-deadline-reminder',
+      context: {
+        campaignName,
+        daysLeft,
+      },
+    });
+  }
+
+  async sendCampaignCompletedEmail(userEmail: string, campaignName: string) {
+    await this.mailerService.sendMail({
+      to: userEmail,
+      subject: 'Campaign Completed',
+      template: 'campaign-completed',
+      context: {
+        campaignName,
+      },
+    });
+  }
 }
