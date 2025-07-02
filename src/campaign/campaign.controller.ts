@@ -17,6 +17,10 @@ import { CampaignService } from './campaign.service';
 import { CreateCampaignDto } from './dto/create-campaign.dto';
 import { UpdateCampaignDto } from './dto/update-campaign.dto';
 import { CreateCampaignProgressDto } from './dto/create-campaign-progress.dto';
+import {
+  UpdateCampaignStatusDto,
+  RejectCampaignDto,
+} from './dto/update-campaign-status.dto';
 import { RolesGuard } from 'src/auth/guards/roles.guard';
 import { Roles } from 'src/auth/decorators/roles.decorator';
 
@@ -184,5 +188,53 @@ export class CampaignController {
   @Roles('USER', 'ADMIN')
   async getFinancialReport(@Param('id') id: string) {
     return this.campaignService.generateFinancialReport(+id);
+  }
+
+  @Patch(':id/status')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN')
+  async updateCampaignStatus(
+    @Param('id') id: string,
+    @Body() updateStatusDto: UpdateCampaignStatusDto,
+  ) {
+    const campaign = await this.campaignService.updateCampaignStatus(
+      +id,
+      updateStatusDto.status,
+      updateStatusDto.reason,
+    );
+    return {
+      message: 'Campaign status updated successfully',
+      campaign,
+    };
+  }
+
+  @Post(':id/approve')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN')
+  async approveCampaign(
+    @Param('id') id: string,
+  ): Promise<{ message: string; campaign: any }> {
+    const campaign = await this.campaignService.approveCampaign(+id);
+    return {
+      message: 'Campaign approved successfully',
+      campaign,
+    };
+  }
+
+  @Post(':id/reject')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN')
+  async rejectCampaign(
+    @Param('id') id: string,
+    @Body() rejectDto: RejectCampaignDto,
+  ): Promise<{ message: string; campaign: any }> {
+    const campaign = await this.campaignService.rejectCampaign(
+      +id,
+      rejectDto.reason,
+    );
+    return {
+      message: 'Campaign rejected successfully',
+      campaign,
+    };
   }
 }

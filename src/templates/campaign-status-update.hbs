@@ -1,0 +1,149 @@
+<html lang='vi'>
+  <head>
+    <meta charset='UTF-8' />
+    <meta name='viewport' content='width=device-width, initial-scale=1.0' />
+    <title>Cập nhật trạng thái chiến dịch</title>
+    <style>
+      body {
+        font-family: 'Arial', sans-serif;
+        margin: 0;
+        padding: 0;
+        background-color: #f4f4f4;
+      }
+      .container {
+        max-width: 600px;
+        margin: 0 auto;
+        background-color: white;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+      }
+      .header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        text-align: center;
+        padding: 40px 20px;
+      }
+      .header h1 {
+        margin: 0;
+        font-size: 28px;
+        font-weight: 300;
+      }
+      .content {
+        padding: 40px 30px;
+      }
+      .status-badge {
+        display: inline-block;
+        padding: 8px 16px;
+        border-radius: 20px;
+        font-size: 14px;
+        font-weight: bold;
+        margin: 20px 0;
+      }
+      .status-approved {
+        background-color: #d4edda;
+        color: #155724;
+      }
+      .status-rejected {
+        background-color: #f8d7da;
+        color: #721c24;
+      }
+      .status-active {
+        background-color: #cce5ff;
+        color: #004085;
+      }
+      .status-finished {
+        background-color: #e2e3e5;
+        color: #383d41;
+      }
+      .status-cancelled {
+        background-color: #f5c6cb;
+        color: #721c24;
+      }
+      .campaign-info {
+        background-color: #f8f9fa;
+        padding: 20px;
+        border-radius: 8px;
+        margin: 20px 0;
+      }
+      .campaign-title {
+        font-size: 18px;
+        font-weight: bold;
+        color: #333;
+        margin-bottom: 10px;
+      }
+      .button {
+        display: inline-block;
+        padding: 12px 30px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        text-decoration: none;
+        border-radius: 25px;
+        margin: 20px 0;
+        font-weight: bold;
+      }
+      .footer {
+        background-color: #f8f9fa;
+        text-align: center;
+        padding: 20px;
+        color: #6c757d;
+        font-size: 12px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class='container'>
+      <div class='header'>
+        <h1>🔔 Cập nhật trạng thái chiến dịch</h1>
+      </div>
+
+      <div class='content'>
+        <p>Xin chào <strong>{{campaignCreatorName}}</strong>,</p>
+
+        <p>Chúng tôi có thông báo quan trọng về chiến dịch của bạn:</p>
+
+        <div class='campaign-info'>
+          <div class='campaign-title'>{{campaignTitle}}</div>
+          <div>
+            Trạng thái mới:
+            <span
+              class='status-badge status-{{statusClass}}'
+            >{{statusDisplay}}</span>
+          </div>
+        </div>
+
+        <p>{{statusMessage}}</p>
+
+        {{#if reason}}
+          <div
+            style='background-color: #fff3cd; border: 1px solid #ffeaa7; padding: 15px; border-radius: 5px; margin: 20px 0;'
+          >
+            <strong>Lý do:</strong>
+            {{reason}}
+          </div>
+        {{/if}}
+
+        {{#if nextSteps}}
+          <div
+            style='background-color: #e7f3ff; border: 1px solid #b3d7ff; padding: 15px; border-radius: 5px; margin: 20px 0;'
+          >
+            <strong>Bước tiếp theo:</strong>
+            {{nextSteps}}
+          </div>
+        {{/if}}
+
+        <div style='text-align: center; margin: 30px 0;'>
+          <a href='{{campaignUrl}}' class='button'>Xem chiến dịch</a>
+        </div>
+
+        <p>Nếu bạn có bất kỳ câu hỏi nào, vui lòng liên hệ với chúng tôi.</p>
+
+        <p>Trân trọng,<br />
+          <strong>Đội ngũ Chain4Good</strong></p>
+      </div>
+
+      <div class='footer'>
+        <p>© 2024 Chain4Good. Tất cả quyền được bảo lưu.</p>
+        <p>Email này được gửi tự động, vui lòng không trả lời.</p>
+      </div>
+    </div>
+  </body>
+</html>

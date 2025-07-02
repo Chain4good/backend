@@ -15,6 +15,8 @@ import { CreateCampaignDto } from './dto/create-campaign.dto';
 import { UpdateCampaignDto } from './dto/update-campaign.dto';
 import { CampaignCreatedEvent } from './events/campaign-created.event';
 import { CreateCampaignProgressDto } from './dto/create-campaign-progress.dto';
+import { NotificationService } from '../notification/notification.service';
+import { NotificationType } from '../notification/types/notification.types';
 
 interface CampaignWithRelations {
   id: number;
@@ -44,6 +46,7 @@ export class CampaignService {
     private readonly eventEmitter: EventEmitter2,
     private readonly prisma: PrismaService,
     private readonly campaignEmailService: CampaignEmailService,
+    private readonly notificationService: NotificationService,
   ) {}
 
   async create(
@@ -302,6 +305,15 @@ export class CampaignService {
   }
 
   async update(id: number, updateCampaignDto: UpdateCampaignDto) {
+    // Lấy thông tin campaign hiện tại để so sánh status
+    const currentCampaign = await this.campaignRepo.findOne(id, {
+      user: true,
+    });
+
+    if (!currentCampaign) {
+      throw new NotFoundException('Campaign not found');
+    }
+
     const { images, ...rest } = updateCampaignDto;
 
     const data: Prisma.CampaignUpdateInput = {
@@ -314,6 +326,17 @@ export class CampaignService {
           }
         : {}),
     };
+
+    // Kiểm tra nếu status thay đổi và gửi thông báo
+    if (
+      updateCampaignDto.status &&
+      updateCampaignDto.status !== currentCampaign.status
+    ) {
+      await this.sendCampaignStatusNotification(
+        currentCampaign,
+        updateCampaignDto.status,
+      );
+    }
 
     if (updateCampaignDto.status === 'FINISHED') {
       const campaign = await this.campaignRepo.findOne(id);
@@ -352,6 +375,83 @@ export class CampaignService {
     }
 
     return this.campaignRepo.update(id, data);
+  }
+
+  async updateCampaignStatus(
+    id: number,
+    newStatus: CampaignStatus,
+    reason?: string,
+  ) {
+    const currentCampaign = await this.campaignRepo.findOne(id, {
+      user: true,
+    });
+
+    if (!currentCampaign) {
+      throw new NotFoundException('Campaign not found');
+    }
+
+    // Cập nhật status
+    const updatedCampaign = await this.campaignRepo.update(id, {
+      status: newStatus,
+    });
+
+    // Gửi thông báo cho người tạo campaign
+    await this.sendCampaignStatusNotification(
+      currentCampaign,
+      newStatus,
+      reason,
+    );
+
+    return updatedCampaign;
+  }
+
+  private async sendCampaignStatusNotification(
+    campaign: any,
+    newStatus: CampaignStatus,
+    reason?: string,
+  ) {
+    const statusMessages = {
+      APPROVED: `Chiến dịch "${campaign.title}" của bạn đã được phê duyệt và có thể bắt đầu gây quỹ.`,
+      REJECTED: `Chiến dịch "${campaign.title}" của bạn đã bị từ chối. Vui lòng kiểm tra lại nội dung và gửi lại.`,
+      ACTIVE: `Chiến dịch "${campaign.title}" của bạn đã được kích hoạt và đang hoạt động.`,
+      FINISHED: `Chiến dịch "${campaign.title}" của bạn đã kết thúc thành công.`,
+      CANCELLED: `Chiến dịch "${campaign.title}" của bạn đã bị hủy bởi quản trị viên.`,
+      PENDING: `Chiến dịch "${campaign.title}" của bạn đang chờ xét duyệt.`,
+      DRAFT: `Chiến dịch "${campaign.title}" của bạn đã được chuyển về trạng thái nháp.`,
+    };
+
+    const content =
+      statusMessages[newStatus] ||
+      `Trạng thái chiến dịch "${campaign.title}" đã được cập nhật.`;
+
+    try {
+      // Gửi thông báo in-app
+      await this.notificationService.createAndSendNotification({
+        userId: campaign.userId,
+        type: NotificationType.CAMPAIGN_STATUS,
+        content,
+        metadata: {
+          campaignId: campaign.id,
+          status: newStatus,
+          campaignTitle: campaign.title,
+          reason,
+        },
+      });
+
+      // Gửi email thông báo
+      if (campaign.user?.email && campaign.user?.name) {
+        await this.campaignEmailService.sendCampaignStatusUpdateEmail(
+          campaign.user.email,
+          campaign.title,
+          campaign.user.name,
+          newStatus,
+          campaign.id,
+          reason,
+        );
+      }
+    } catch (error) {
+      console.error('Failed to send campaign status notification:', error);
+    }
   }
 
   remove(id: number) {
@@ -508,6 +608,12 @@ export class CampaignService {
       campaign.name,
     );
 
+    // Gửi thông báo cho người tạo campaign
+    await this.sendCampaignStatusNotification(
+      campaign,
+      'APPROVED' as CampaignStatus,
+    );
+
     return campaign;
   }
 
@@ -531,6 +637,13 @@ export class CampaignService {
     await this.campaignEmailService.sendCampaignRejectionEmail(
       campaign.user.email,
       campaign.name,
+      reason,
+    );
+
+    // Gửi thông báo cho người tạo campaign
+    await this.sendCampaignStatusNotification(
+      campaign,
+      'REJECTED' as CampaignStatus,
       reason,
     );
 

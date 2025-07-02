@@ -9,6 +9,7 @@ import { DonationModule } from '../donation/donation.module';
 import { UsersModule } from '../users/users.module';
 import { CampaignCreatedListener } from './listeners/campaign-created.listener';
 import { CampaignEmailService } from 'src/email/campaign-email.service';
+import { NotificationModule } from '../notification/notification.module';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { CampaignEmailService } from 'src/email/campaign-email.service';
     forwardRef(() => AiModule), // Add forwardRef here
     UsersModule,
     forwardRef(() => DonationModule),
+    NotificationModule,
   ],
   controllers: [CampaignController],
   providers: [
