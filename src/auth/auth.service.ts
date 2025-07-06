@@ -18,13 +18,6 @@ import { verifyMessage } from 'ethers';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { ConfigService } from '@nestjs/config';
 
-interface GoogleUser {
-  email: string;
-  name: string;
-  image?: string;
-  googleAccessToken: string;
-}
-
 interface FacebookUser {
   email: string;
   name: string;

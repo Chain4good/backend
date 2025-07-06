@@ -13,32 +13,32 @@ export class AiController {
   constructor(private readonly aiService: AiService) {}
 
   @Post('analyze-campaign')
-  async analyze(@Body() dto: AnalyzeCampaignDto) {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+  @Post('analyze-campaign')
+  async analyze(@Body() dto: AnalyzeCampaignDto): Promise<any> {
     return this.aiService.analyzeCampaign(dto.title, dto.description);
   }
   @Post('analyze-campaign-gemini')
-  async analyzeGemine(@Body() dto: AnalyzeCampaignDto) {
+  async analyzeGemine(@Body() dto: AnalyzeCampaignDto): Promise<any> {
     return this.aiService.analyzeCampaignWithGemini(dto.title, dto.description);
   }
 
   @Get('analyze-campaign-trust/:campaignId')
-  async analyzeTrust(@Param('campaignId') campaignId: number) {
+  async analyzeTrust(@Param('campaignId') campaignId: number): Promise<any> {
     return this.aiService.analyzeCampaignTrust(+campaignId);
   }
 
   @Post('optimize-campaign')
-  async optimize(@Body() dto: AnalyzeCampaignDto) {
+  async optimize(@Body() dto: AnalyzeCampaignDto): Promise<any> {
     return this.aiService.optimizeCampaignContent(dto.title, dto.description);
   }
 
   @Get('recommendations')
-  async getRecommendations(@GetUser() user: UserExtract) {
+  async getRecommendations(@GetUser() user: UserExtract): Promise<any> {
     return this.aiService.getPersonalizedRecommendations(+user.id);
   }
 
   @Get('campaigns/:campaignId/audio')
-  async textToSpeech(@Param('campaignId') campaignId: number) {
+  async textToSpeech(@Param('campaignId') campaignId: number): Promise<any> {
     return this.aiService.textToSpeech(+campaignId);
   }
 }

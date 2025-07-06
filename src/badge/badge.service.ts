@@ -57,7 +57,7 @@ export class BadgeService {
     );
   }
 
-  async checkCampaignBadges(userId: number, campaign: any) {
+  async checkCampaignBadges() {
     // Kiểm tra và trao badge cho người tạo chiến dịch
   }
 }

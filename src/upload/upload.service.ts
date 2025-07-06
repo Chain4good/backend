@@ -31,11 +31,12 @@ export class UploadService implements OnModuleInit {
   }
 
   async uploadImage(file: Express.Multer.File) {
+    const resourceType = file.mimetype === 'application/pdf' ? 'raw' : 'auto';
     return new Promise((resolve, reject) => {
       const uploadStream = cloudinary.uploader.upload_stream(
         {
           folder: 'charity',
-          resource_type: 'auto',
+          resource_type: resourceType,
         },
         (error, result) => {
           if (error) return reject(error);

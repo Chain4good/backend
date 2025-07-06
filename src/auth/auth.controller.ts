@@ -152,8 +152,7 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @Get('profile')
   getProfile(@GetUser() user: { id: number; email: string }) {
-    const existingUser = this.authService.getMe(user.id);
-    return existingUser;
+    return this.authService.getMe(user.id);
   }
 
   @Get('google')
@@ -171,7 +170,7 @@ export class AuthController {
   ) {
     try {
       // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-      const { user, access_token, refresh_token } = req.user as any;
+      const { access_token, refresh_token } = req.user as any;
 
       res.cookie('access_token', access_token, {
         httpOnly: true,
@@ -247,7 +246,7 @@ export class AuthController {
   ) {
     try {
       // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-      const { user, access_token, refresh_token } = req.user as any;
+      const { access_token, refresh_token } = req.user as any;
 
       res.cookie('access_token', access_token, {
         httpOnly: true,

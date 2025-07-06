@@ -1,11 +1,16 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { CampaignService } from 'src/campaign/campaign.service';
+import { FindOneCampaignUseCase } from 'src/campaign/use-cases/find-one-campaign.use-case';
 import { NotificationService } from 'src/notification/notification.service';
 import { NotificationType } from 'src/notification/types/notification.types';
 import { CommentRepo } from './comment.repository';
 import { LikeRepo } from './like.repository';
 import { CreateCommentDto } from './dto/create-comment.dto';
 import { UsersService } from 'src/users/users.service';
+import { Campaign, Comment, User } from '@prisma/client';
+
+interface CampaignWithRelations extends Campaign {
+  user?: User;
+}
 
 @Injectable()
 export class CommentService {
@@ -13,7 +18,7 @@ export class CommentService {
     private readonly commentRepo: CommentRepo,
     private readonly likeRepo: LikeRepo,
     private readonly notificationService: NotificationService,
-    private readonly campaignService: CampaignService,
+    private readonly findOneCampaignUseCase: FindOneCampaignUseCase,
     private readonly userService: UsersService,
   ) {}
 
@@ -21,7 +26,8 @@ export class CommentService {
     const { userId, campaignId, parentId, ...rest } = createCommentDto;
 
     if (parentId) {
-      const parentComment = await this.commentRepo.findOne(parentId);
+      const parentComment: Comment | null =
+        await this.commentRepo.findOne(parentId);
       if (!parentComment) {
         throw new NotFoundException('Parent comment not found');
       }
@@ -34,23 +40,31 @@ export class CommentService {
       ...(parentId && { parent: { connect: { id: parentId } } }),
     });
 
-    const campaign = await this.campaignService.findOne(campaignId);
-    if (!campaign) throw new Error('Campaign not found');
+    const campaign: CampaignWithRelations | null =
+      (await this.findOneCampaignUseCase.execute(
+        campaignId,
+      )) as CampaignWithRelations;
+    if (!campaign) throw new NotFoundException('Campaign not found');
 
     if (parentId) {
-      const parentComment = await this.commentRepo.findOne(parentId, {
-        user: true,
-      });
+      const parentComment: Comment | null = await this.commentRepo.findOne(
+        parentId,
+        {
+          user: true,
+        },
+      );
       if (!parentComment) {
         throw new NotFoundException('Parent comment not found');
       }
-      const user = await this.userService.findById(parentComment?.userId);
+      const user: User | null = await this.userService.findById(
+        parentComment.userId,
+      );
       if (!user) throw new Error('User not found');
       if (parentComment && parentComment.userId !== userId) {
         await this.notificationService.createAndSendNotification({
           userId: parentComment.userId,
           type: NotificationType.COMMENT_REPLY,
-          content: `<p><strong>${user.name}</strong> đã trả lời bình luận của bạn</p>`,
+          content: `<p><strong>${user.name as string}</strong> đã trả lời bình luận của bạn</p>`,
           metadata: {
             campaignTitle: campaign.title,
             commentId: comment.id,
@@ -60,20 +74,18 @@ export class CommentService {
           },
         });
       }
-    } else {
-      if (campaign.userId !== userId) {
-        await this.notificationService.createAndSendNotification({
-          userId: campaign.userId,
-          type: NotificationType.COMMENT,
-          content: 'Có bình luận mới trong chiến dịch của bạn',
-          metadata: {
-            campaignTitle: campaign.title,
-            commentId: comment.id,
-            campaignId,
-            commenterName: comment.userId,
-          },
-        });
-      }
+    } else if (campaign.userId !== userId) {
+      await this.notificationService.createAndSendNotification({
+        userId: campaign.userId,
+        type: NotificationType.COMMENT,
+        content: 'Có bình luận mới trong chiến dịch của bạn',
+        metadata: {
+          campaignTitle: campaign.title,
+          commentId: comment.id,
+          campaignId,
+          commenterName: comment.userId,
+        },
+      });
     }
 
     return comment;

@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-argument */
 import {
   Injectable,
   Inject,
@@ -24,7 +23,15 @@ export class CreateDonationUseCase {
       tokenName?: string;
     },
   ) {
-    const { userId, campaignId, tokenName, ...rest } = createDonationDto;
+    const {
+      userId,
+      campaignId,
+      tokenName: _tokenName,
+      ...rest
+    } = createDonationDto;
+
+    // tokenName is used in the service layer for badge checking, not in this use case
+    void _tokenName;
 
     try {
       // Add donatedAt field with current timestamp
@@ -39,6 +46,7 @@ export class CreateDonationUseCase {
         },
       });
 
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
       await this.campaignService.update(campaignId, {
         totalDonated: {
           increment: rest.amount,
@@ -46,7 +54,7 @@ export class CreateDonationUseCase {
       } as any);
 
       return donation;
-    } catch (error) {
+    } catch (error: any) {
       if (error instanceof Prisma.PrismaClientKnownRequestError) {
         if (error.code === 'P2002') {
           throw new ConflictException('Donation already exists');

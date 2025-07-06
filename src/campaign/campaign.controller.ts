@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-return */
 import {
   Body,
   Controller,
@@ -10,23 +9,56 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { CampaignStatus } from '@prisma/client';
 import { GetUser, UserExtract } from 'src/auth/decorators/auth.decorators';
-import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
-import { CampaignService } from './campaign.service';
-import { CreateCampaignDto } from './dto/create-campaign.dto';
-import { UpdateCampaignDto } from './dto/update-campaign.dto';
-import { CreateCampaignProgressDto } from './dto/create-campaign-progress.dto';
-import {
-  UpdateCampaignStatusDto,
-  RejectCampaignDto,
-} from './dto/update-campaign-status.dto';
-import { RolesGuard } from 'src/auth/guards/roles.guard';
 import { Roles } from 'src/auth/decorators/roles.decorator';
+import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
+import { RolesGuard } from 'src/auth/guards/roles.guard';
+import { CampaignService } from './campaign.service';
+import { CreateCampaignProgressDto } from './dto/create-campaign-progress.dto';
+import { CreateCampaignDto } from './dto/create-campaign.dto';
+import {
+  FindAllCampaignValidDto,
+  FindAllCampaignDto,
+  FindMyCampaignDto,
+  GetCampaignDonationHistoryDto,
+  RejectCampaignDto,
+  UpdateCampaignStatusDto,
+} from './dto/campaign.dto';
+import { UpdateCampaignDto } from './dto/update-campaign.dto';
+import {
+  AddCampaignProgressUseCase,
+  ApproveCampaignUseCase,
+  FindAllCampaignUseCase,
+  FindAllCampaignValidUseCase,
+  FindMyCampaignUseCase,
+  FindOneCampaignUseCase,
+  GenerateFinancialReportUseCase,
+  GetCampaignDonationHistoryUseCase,
+  GetCampaignProgressHistoryUseCase,
+  RejectCampaignUseCase,
+  RemoveCampaignUseCase,
+  UpdateCampaignStatusUseCase,
+  UpdateCampaignUseCase,
+} from './use-cases';
 
 @Controller('campaigns')
 export class CampaignController {
-  constructor(private readonly campaignService: CampaignService) {}
+  constructor(
+    private readonly campaignService: CampaignService,
+    private readonly findAllCampaignUseCase: FindAllCampaignUseCase,
+    private readonly findAllCampaignValidUseCase: FindAllCampaignValidUseCase,
+    private readonly findMyCampaignUseCase: FindMyCampaignUseCase,
+    private readonly findOneCampaignUseCase: FindOneCampaignUseCase,
+    private readonly updateCampaignUseCase: UpdateCampaignUseCase,
+    private readonly removeCampaignUseCase: RemoveCampaignUseCase,
+    private readonly updateCampaignStatusUseCase: UpdateCampaignStatusUseCase,
+    private readonly approveCampaignUseCase: ApproveCampaignUseCase,
+    private readonly rejectCampaignUseCase: RejectCampaignUseCase,
+    private readonly addCampaignProgressUseCase: AddCampaignProgressUseCase,
+    private readonly getCampaignProgressHistoryUseCase: GetCampaignProgressHistoryUseCase,
+    private readonly getCampaignDonationHistoryUseCase: GetCampaignDonationHistoryUseCase,
+    private readonly generateFinancialReportUseCase: GenerateFinancialReportUseCase,
+  ) {}
 
   @Post()
   @UseGuards(JwtAuthGuard)
@@ -35,68 +67,21 @@ export class CampaignController {
     @Body() createCampaignDto: CreateCampaignDto,
     @GetUser() user: UserExtract,
   ) {
-    const campaign = await this.campaignService.create({
+    return this.campaignService.create({
       ...createCampaignDto,
       userId: user.id,
       email: user.email,
     });
-    return campaign;
   }
 
   @Get()
-  findAll(
-    @Query('userId') userId: number,
-    @Query('email') email: string,
-    @Query('status') status: CampaignStatus,
-    @Query('page') page: number,
-    @Query('limit') limit: number,
-    @Query('search') search: string,
-    @Query('sort') sort: 'asc' | 'desc',
-    @Query('sortBy') sortBy: string,
-    @Query('categoryId') categoryId: number,
-    @Query('fundraiseTypeId') fundraiseTypeId: number,
-    @Query('countryId') countryId: number,
-  ) {
-    return this.campaignService.findAll(
-      userId,
-      email,
-      status,
-      page,
-      limit,
-      search,
-      sort,
-      sortBy,
-      categoryId,
-      fundraiseTypeId,
-      countryId,
-    );
+  findAll(@Query() dto: FindAllCampaignDto) {
+    return this.findAllCampaignUseCase.execute(dto);
   }
 
   @Get('valid')
-  async findCampaignValid(
-    @Query('userId') userId: number,
-    @Query('email') email: string,
-    @Query('page') page: number,
-    @Query('limit') limit: number,
-    @Query('search') search: string,
-    @Query('sort') sort: 'asc' | 'desc',
-    @Query('sortBy') sortBy: string,
-    @Query('categoryId') categoryId: number,
-    @Query('fundraiseTypeId') fundraiseTypeId: number,
-    @Query('countryId') countryId: number,
-  ) {
-    return this.campaignService.findAllValid(
-      userId,
-      email,
-      page,
-      limit,
-      search,
-      sort,
-      sortBy,
-      categoryId,
-      fundraiseTypeId,
-      countryId,
-    );
+  async findCampaignValid(@Query() dto: FindAllCampaignValidDto) {
+    return this.findAllCampaignValidUseCase.execute(dto);
   }
 
   @Get('my-campaigns')
@@ -104,18 +89,9 @@ export class CampaignController {
   @Roles('USER', 'ADMIN')
   async findMyCampaigns(
     @GetUser() user: UserExtract,
-    @Query('page') page: number,
-    @Query('limit') limit: number,
-    @Query('status') status: CampaignStatus,
+    @Query() dto: FindMyCampaignDto,
   ) {
-    const campaigns = await this.campaignService.findMyCampaigns(
-      user.id,
-      page,
-      limit,
-      status,
-    );
-
-    return campaigns;
+    return this.findMyCampaignUseCase.execute(user.id, dto);
   }
 
   @Get('calculate-eth-goal')
@@ -134,7 +110,7 @@ export class CampaignController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Get(':id')
   findOne(@Param('id') id: string) {
-    return this.campaignService.findOne(+id);
+    return this.findOneCampaignUseCase.execute(+id);
   }
 
   @Patch(':id')
@@ -144,29 +120,21 @@ export class CampaignController {
     @Param('id') id: string,
     @Body() updateCampaignDto: UpdateCampaignDto,
   ) {
-    const campaign = await this.campaignService.update(+id, updateCampaignDto);
-    return campaign;
+    return this.updateCampaignUseCase.execute(+id, updateCampaignDto);
   }
   @Delete(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN')
   remove(@Param('id') id: string) {
-    return this.campaignService.remove(+id);
+    return this.removeCampaignUseCase.execute(+id);
   }
 
   @Get(':id/donation-history')
   async getDonationHistory(
     @Param('id') id: string,
-    @Query('startDate') startDate?: string,
-    @Query('endDate') endDate?: string,
-    @Query('groupBy') groupBy: 'day' | 'week' | 'month' = 'day',
+    @Query() dto: GetCampaignDonationHistoryDto,
   ) {
-    return this.campaignService.getDonationHistory(
-      +id,
-      startDate ? new Date(startDate) : undefined,
-      endDate ? new Date(endDate) : undefined,
-      groupBy,
-    );
+    return this.getCampaignDonationHistoryUseCase.execute(+id, dto);
   }
 
   @Post(':id/progress')
@@ -175,19 +143,19 @@ export class CampaignController {
     @Param('id') id: string,
     @Body() createProgressDto: CreateCampaignProgressDto,
   ) {
-    return this.campaignService.addProgress(+id, createProgressDto);
+    return this.addCampaignProgressUseCase.execute(+id, createProgressDto);
   }
 
   @Get(':id/progress')
   async getProgressHistory(@Param('id') id: string) {
-    return this.campaignService.getProgressHistory(+id);
+    return this.getCampaignProgressHistoryUseCase.execute(+id);
   }
 
   @Get(':id/financial-report')
   @UseGuards(JwtAuthGuard)
   @Roles('USER', 'ADMIN')
   async getFinancialReport(@Param('id') id: string) {
-    return this.campaignService.generateFinancialReport(+id);
+    return this.generateFinancialReportUseCase.execute(+id);
   }
 
   @Patch(':id/status')
@@ -197,10 +165,9 @@ export class CampaignController {
     @Param('id') id: string,
     @Body() updateStatusDto: UpdateCampaignStatusDto,
   ) {
-    const campaign = await this.campaignService.updateCampaignStatus(
+    const campaign = await this.updateCampaignStatusUseCase.execute(
       +id,
-      updateStatusDto.status,
-      updateStatusDto.reason,
+      updateStatusDto,
     );
     return {
       message: 'Campaign status updated successfully',
@@ -214,7 +181,7 @@ export class CampaignController {
   async approveCampaign(
     @Param('id') id: string,
   ): Promise<{ message: string; campaign: any }> {
-    const campaign = await this.campaignService.approveCampaign(+id);
+    const campaign = await this.approveCampaignUseCase.execute(+id);
     return {
       message: 'Campaign approved successfully',
       campaign,
@@ -228,10 +195,7 @@ export class CampaignController {
     @Param('id') id: string,
     @Body() rejectDto: RejectCampaignDto,
   ): Promise<{ message: string; campaign: any }> {
-    const campaign = await this.campaignService.rejectCampaign(
-      +id,
-      rejectDto.reason,
-    );
+    const campaign = await this.rejectCampaignUseCase.execute(+id, rejectDto);
     return {
       message: 'Campaign rejected successfully',
       campaign,

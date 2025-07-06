@@ -8,7 +8,7 @@ import { ThankYouLetterResponse } from './types/thank-you-letter.type';
 import { GeminiService } from 'src/gemini/gemini.service';
 import { CampaignAnalysis } from './types/analyze-campaign.type';
 import { TrustAnalysis } from './types/trust-analyze.type';
-import { CampaignService } from 'src/campaign/campaign.service';
+import { FindOneCampaignUseCase } from 'src/campaign/use-cases/find-one-campaign.use-case';
 import { CampaignOptimization } from './types/campaign-optimization.type';
 import { RecommendationResponse } from './types/campaign-recommendations.type';
 import { UsersService } from 'src/users/users.service';
@@ -21,8 +21,8 @@ export class AiService {
   constructor(
     private configService: ConfigService,
     private geminiService: GeminiService,
-    @Inject(forwardRef(() => CampaignService))
-    private campaignService: CampaignService,
+    @Inject(forwardRef(() => FindOneCampaignUseCase))
+    private findOneCampaignUseCase: FindOneCampaignUseCase,
     private userService: UsersService,
     private donationService: DonationService,
   ) {
@@ -31,7 +31,10 @@ export class AiService {
     });
   }
 
-  async analyzeCampaign(title: string, description: string) {
+  async analyzeCampaign(
+    title: string,
+    description: string,
+  ): Promise<CampaignAnalysis> {
     const prompt = `
             Phân tích và tóm tắt chiến dịch từ thiện sau:
             Tiêu đề: ${title}
@@ -47,8 +50,8 @@ export class AiService {
     });
 
     const content = response.choices[0].message?.content;
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
-    return JSON.parse(content || '{}');
+
+    return JSON.parse(content || '{}') as CampaignAnalysis;
   }
 
   async generateThankYouLetter(
@@ -102,12 +105,8 @@ export class AiService {
       const cleanContent = content.replace(/[\x00-\x1F\x7F-\x9F]/g, '');
 
       return JSON.parse(cleanContent) as ThankYouLetterResponse;
-    } catch (error) {
-      console.error('Failed to parse AI response:', error);
-      return {
-        subject: 'Thank You for Your Support',
-        content: '<p>Thank you for your generous contribution.</p>',
-      };
+    } catch (error: unknown) {
+      throw new Error(`Failed to generate TTS: ${(error as Error).message}`);
     }
   }
 
@@ -131,19 +130,20 @@ export class AiService {
     try {
       const result = await this.geminiService.generateContent(prompt);
       const data = JSON.parse(result);
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-return
-      return data;
-    } catch (error) {
-      console.error('Failed to analyze campaign with Gemini:', error);
+
+      return data as CampaignAnalysis;
+    } catch (error: unknown) {
+      console.error(`Failed to analyze campaign:`, (error as Error).message);
       return {
-        summary: 'Không thể phân tích chiến dịch.',
-        analysis: 'Đã xảy ra lỗi trong quá trình phân tích.',
+        summary: 'Không thể phân tích chiến dịch này',
+        analysis:
+          'Đã xảy ra lỗi trong quá trình phân tích. Vui lòng thử lại sau.',
       };
     }
   }
 
   async analyzeCampaignTrust(campaignId: number): Promise<TrustAnalysis> {
-    const campaign = await this.campaignService.findOne(campaignId);
+    const campaign = await this.findOneCampaignUseCase.execute(campaignId);
     if (!campaign) {
       throw new Error('Campaign not found');
     }
@@ -162,8 +162,7 @@ export class AiService {
       }
     `;
     const result = await this.geminiService.generateContent(prompt);
-    const data = JSON.parse(result);
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    const data = JSON.parse(result) as TrustAnalysis;
     return data;
   }
 
@@ -212,7 +211,7 @@ export class AiService {
       }
 
       return parsed as CampaignOptimization;
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Không thể tối ưu hóa nội dung chiến dịch:', error);
       throw new Error('Tối ưu hóa chiến dịch thất bại - Vui lòng thử lại');
     }
@@ -266,14 +265,14 @@ export class AiService {
     try {
       const result = await this.geminiService.generateContent(prompt);
       return JSON.parse(result) as RecommendationResponse;
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Không thể tạo đề xuất:', error);
       throw new Error('Không thể tạo đề xuất chiến dịch');
     }
   }
 
   async textToSpeech(campaignId: number) {
-    const campaign = await this.campaignService.findOne(campaignId);
+    const campaign = await this.findOneCampaignUseCase.execute(campaignId);
     if (!campaign) {
       throw new Error('Campaign not found');
     }
