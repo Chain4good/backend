@@ -39,6 +39,12 @@ enum ReportType {
   ILLEGAL
 }
 
+enum KycStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 model Role {
   id          Int     @id @default(autoincrement())
   name        String  @unique
@@ -73,6 +79,7 @@ model User {
   cover       String?
   isVerified  Boolean @default(false)
   isActive    Boolean @default(true)
+  kycStatus   KycStatus @default(PENDING)
 
   roleId    Int
   role      Role       @relation(fields: [roleId], references: [id])
@@ -88,6 +95,22 @@ model User {
   Notification  Notification[]
   Post          Post[]
   UserBadge     UserBadge[]
+  kycDocuments  KycDocument[]
+}
+
+model KycDocument {
+  id          Int       @id @default(autoincrement())
+  userId      Int       @unique
+  user        User      @relation(fields: [userId], references: [id])
+  documentType String
+  documentUrl String
+  facialImageUrl String
+  status      KycStatus @default(PENDING)
+  rejectionReason String?
+  uploadedAt  DateTime  @default(now())
+  reviewedAt  DateTime?
+  issueDate   DateTime?
+  expiryDate  DateTime?
 }
 
 model Campaign {

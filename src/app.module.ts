@@ -23,6 +23,7 @@ import { PostModule } from './post/post.module';
 import { GeminiModule } from './gemini/gemini.module';
 import { ReportModule } from './report/report.module';
 import { RoleModule } from './role/role.module';
+import { KycModule } from './kyc/kyc.module';
 
 @Module({
   imports: [
@@ -51,6 +52,7 @@ import { RoleModule } from './role/role.module';
     GeminiModule,
     ReportModule,
     RoleModule,
+    KycModule,
   ],
   controllers: [AppController],
   providers: [AppService],

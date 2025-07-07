@@ -4,6 +4,7 @@ import { Prisma, User } from '@prisma/client';
 import { UserRegisterDTO } from 'src/auth/dtos/user-register.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UserRepository } from './user.repository';
+import { KycStatus } from 'src/kyc/dto/kyc.dto';
 
 @Injectable()
 export class UsersService {
@@ -66,6 +67,13 @@ export class UsersService {
     return this.prisma.user.update({
       where: { id },
       data,
+    });
+  }
+
+  async updateKycStatus(userId: number, status: KycStatus): Promise<User> {
+    return this.prisma.user.update({
+      where: { id: userId },
+      data: { kycStatus: status },
     });
   }
 

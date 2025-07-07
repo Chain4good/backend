@@ -4,6 +4,8 @@ export enum NotificationType {
   COMMENT = 'COMMENT',
   CAMPAIGN_UPDATE = 'CAMPAIGN_UPDATE',
   CAMPAIGN_STATUS = 'CAMPAIGN_STATUS',
+  KYC_SUBMISSION = 'KYC_SUBMISSION',
+  KYC_STATUS_UPDATE = 'KYC_STATUS_UPDATE',
 }
 
 export interface NotificationMetadata {
