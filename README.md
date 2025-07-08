@@ -8,17 +8,18 @@
 
 ## Table of Contents
 
-*   [Project Overview](#project-overview)
-*   [Features](#features)
-*   [Technologies Used](#technologies-used)
-*   [Prerequisites](#prerequisites)
-*   [Installation and Setup](#installation-and-setup)
-*   [Running the Application](#running-the-application)
-*   [Running Tests](#running-tests)
-*   [API Documentation](#api-documentation)
-*   [Deployment](#deployment)
-*   [Support](#support)
-*   [License](#license)
+- [Project Overview](#project-overview)
+- [Features](#features)
+- [Technologies Used](#technologies-used)
+- [Prerequisites](#prerequisites)
+- [Installation and Setup](#installation-and-setup)
+- [Running the Application](#running-the-application)
+- [Running Tests](#running-tests)
+- [CI/CD Pipeline](#ci-cd-pipeline)
+- [API Documentation](#api-documentation)
+- [Deployment](#deployment)
+- [Support](#support)
+- [License](#license)
 
 ## Project Overview
 
@@ -26,42 +27,42 @@ This project serves as the backend API for a charity application, providing all 
 
 ## Features
 
-*   **User Management:** User registration, authentication (JWT, OAuth), and profile management.
-*   **Campaign Management:** Create, read, update, and delete charity campaigns.
-*   **Donation System:** Process and track donations.
-*   **KYC (Know Your Customer):** Implementation of KYC features for users.
-*   **Badge System:** Awarding and managing user badges based on activity.
-*   **Comment System:** Functionality for users to comment on campaigns or posts.
-*   **Notification System:** Real-time notifications for various events.
-*   **Email Services:** Sending transactional emails (e.g., verification, password reset).
-*   **Image and Audio Uploads:** Handling media uploads for campaigns and user profiles.
-*   **AI Integration:** (Potentially) AI-powered features for content generation or moderation.
-*   **Admin Dashboard:** Endpoints for administrative tasks and analytics.
+- **User Management:** User registration, authentication (JWT, OAuth), and profile management.
+- **Campaign Management:** Create, read, update, and delete charity campaigns.
+- **Donation System:** Process and track donations.
+- **KYC (Know Your Customer):** Implementation of KYC features for users.
+- **Badge System:** Awarding and managing user badges based on activity.
+- **Comment System:** Functionality for users to comment on campaigns or posts.
+- **Notification System:** Real-time notifications for various events.
+- **Email Services:** Sending transactional emails (e.g., verification, password reset).
+- **Image and Audio Uploads:** Handling media uploads for campaigns and user profiles.
+- **AI Integration:** (Potentially) AI-powered features for content generation or moderation.
+- **Admin Dashboard:** Endpoints for administrative tasks and analytics.
 
 ## Technologies Used
 
-*   **Framework:** [NestJS](https://nestjs.com/) (Node.js)
-*   **Database:** [PostgreSQL](https://www.postgresql.org/) (via Prisma ORM)
-*   **ORM:** [Prisma](https://www.prisma.io/)
-*   **Authentication:** JWT, Passport.js (Local, Google, Facebook, GitHub strategies)
-*   **Real-time Communication:** WebSockets (Socket.IO)
-*   **Caching:** Redis (via Cache Manager)
-*   **Email:** Nodemailer, Handlebars (for templates)
-*   **Cloud Storage:** Cloudinary (for image/audio uploads)
-*   **AI:** Google GenAI, OpenAI
-*   **Validation:** Class-validator, Class-transformer
-*   **Dependency Management:** npm
-*   **Containerization:** Docker
+- **Framework:** [NestJS](https://nestjs.com/) (Node.js)
+- **Database:** [PostgreSQL](https://www.postgresql.org/) (via Prisma ORM)
+- **ORM:** [Prisma](https://www.prisma.io/)
+- **Authentication:** JWT, Passport.js (Local, Google, Facebook, GitHub strategies)
+- **Real-time Communication:** WebSockets (Socket.IO)
+- **Caching:** Redis (via Cache Manager)
+- **Email:** Nodemailer, Handlebars (for templates)
+- **Cloud Storage:** Cloudinary (for image/audio uploads)
+- **AI:** Google GenAI, OpenAI
+- **Validation:** Class-validator, Class-transformer
+- **Dependency Management:** npm
+- **Containerization:** Docker
 
 ## Prerequisites
 
 Before you begin, ensure you have the following installed on your system:
 
-*   [Node.js](https://nodejs.org/en/download/) (LTS version recommended)
-*   [npm](https://www.npmjs.com/get-npm) (comes with Node.js)
-*   [Docker](https://www.docker.com/get-started)
-*   [Docker Compose](https://docs.docker.com/compose/install/)
-*   [PostgreSQL](https://www.postgresql.org/download/) (or use Docker for the database)
+- [Node.js](https://nodejs.org/en/download/) (LTS version recommended)
+- [npm](https://www.npmjs.com/get-npm) (comes with Node.js)
+- [Docker](https://www.docker.com/get-started)
+- [Docker Compose](https://docs.docker.com/compose/install/)
+- [PostgreSQL](https://www.postgresql.org/download/) (or use Docker for the database)
 
 ## Installation and Setup
 
@@ -82,16 +83,16 @@ Before you begin, ensure you have the following installed on your system:
 
     Create a `.env` file in the root of the project and add your environment variables. A `.env.example` file might be provided as a guide. Key variables typically include:
 
-    *   `DATABASE_URL` (for PostgreSQL connection string)
-    *   `JWT_SECRET`
-    *   `REDIS_HOST`, `REDIS_PORT`
-    *   `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`
-    *   `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`
-    *   `FACEBOOK_CLIENT_ID`, `FACEBOOK_CLIENT_SECRET`
-    *   `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`
-    *   `MAILER_EMAIL`, `MAILER_PASSWORD`
-    *   `GEMINI_API_KEY`
-    *   `OPENAI_API_KEY`
+    - `DATABASE_URL` (for PostgreSQL connection string)
+    - `JWT_SECRET`
+    - `REDIS_HOST`, `REDIS_PORT`
+    - `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`
+    - `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`
+    - `FACEBOOK_CLIENT_ID`, `FACEBOOK_CLIENT_SECRET`
+    - `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`
+    - `MAILER_EMAIL`, `MAILER_PASSWORD`
+    - `GEMINI_API_KEY`
+    - `OPENAI_API_KEY`
 
 4.  **Database Setup (using Docker Compose for convenience):**
 
@@ -101,7 +102,7 @@ Before you begin, ensure you have the following installed on your system:
     docker-compose up -d postgres redis
     ```
 
-    *Ensure your `DATABASE_URL` in `.env` points to the Dockerized PostgreSQL instance (e.g., `postgresql://user:password@localhost:5432/database`).*
+    _Ensure your `DATABASE_URL` in `.env` points to the Dockerized PostgreSQL instance (e.g., `postgresql://user:password@localhost:5432/database`)._
 
 5.  **Run Prisma Migrations:**
 
@@ -111,49 +112,151 @@ Before you begin, ensure you have the following installed on your system:
     npm run prisma:generate
     npx prisma migrate dev --name init
     ```
-    *(Note: `init` can be replaced with a descriptive name for your initial migration)*
+
+    _(Note: `init` can be replaced with a descriptive name for your initial migration)_
 
 ## Running the Application
 
-*   **Development Mode (with watch):**
+- **Development Mode (with watch):**
 
-    ```bash
-    npm run start:dev
-    ```
+  ```bash
+  npm run start:dev
+  ```
 
-*   **Production Mode:**
+- **Production Mode:**
 
-    ```bash
-    npm run start:prod
-    ```
+  ```bash
+  npm run start:prod
+  ```
 
-*   **Debug Mode:**
+- **Debug Mode:**
 
-    ```bash
-    npm run start:debug
-    ```
+  ```bash
+  npm run start:debug
+  ```
 
 The application will typically run on `http://localhost:3000` (or the port specified in your environment variables).
 
 ## Running Tests
 
-*   **Unit Tests:**
+- **Unit Tests:**
 
-    ```bash
-    npm run test
-    ```
+  ```bash
+  npm run test
+  ```
 
-*   **End-to-End Tests:**
+- **End-to-End Tests:**
 
-    ```bash
-    npm run test:e2e
-    ```
+  ```bash
+  npm run test:e2e
+  ```
 
-*   **Test Coverage:**
+- **Test Coverage:**
 
-    ```bash
-    npm run test:cov
-    ```
+      ```bash
+
+  npm run test:cov
+
+  ```
+
+  ```
+
+- **CI-like Testing (locally):**
+
+  ```bash
+  npm run test:ci
+  ```
+
+  This runs the same tests that will run in the CI/CD pipeline, including linting, type checking, and tests with coverage.
+
+## CI/CD Pipeline
+
+[![CI/CD Status](https://github.com/your-username/charity-backend/workflows/CI%2FCD%20Pipeline/badge.svg)](https://github.com/your-username/charity-backend/actions)
+
+This project includes a comprehensive CI/CD pipeline using GitHub Actions that ensures code quality and automates deployment.
+
+### Pipeline Overview
+
+The CI/CD pipeline consists of two main jobs:
+
+1. **Test Job** - Runs on every push and pull request
+2. **Deploy Job** - Runs only on pushes to main branch (after tests pass)
+
+### Test Job Features
+
+- 🧪 **Automated Testing**: Runs full test suite with coverage
+- 🔍 **Code Quality**: ESLint and TypeScript checks
+- 📊 **Coverage Reports**: Generates and uploads test coverage to Codecov
+- 🐘 **Database Testing**: Uses PostgreSQL service for realistic testing
+- 🏗️ **Build Verification**: Ensures the application builds successfully
+
+### Test Job Steps
+
+1. **Environment Setup**
+
+   - Node.js 18 with npm caching
+   - PostgreSQL 15 service container
+   - Test environment variables
+
+2. **Code Quality Checks**
+
+   - Install dependencies with `npm ci`
+   - Generate Prisma client
+   - Run database migrations
+   - ESLint code linting
+   - TypeScript compilation check
+
+3. **Testing**
+   - Run full test suite with coverage
+   - Upload coverage reports to Codecov
+
+### Deploy Job Features
+
+- 🚀 **Automated Deployment**: Deploys to VPS only after tests pass
+- 🐳 **Docker Integration**: Builds and pushes Docker images
+- 📦 **Optimized Builds**: Uses GitHub Actions cache for faster builds
+- 🔄 **Rolling Updates**: Zero-downtime deployment with Docker Compose
+
+### Secrets Required
+
+To set up the pipeline, configure these secrets in your GitHub repository:
+
+**Docker Hub:**
+
+- `DOCKER_USERNAME` - Your Docker Hub username
+- `DOCKER_TOKEN` - Your Docker Hub access token
+
+**VPS Deployment:**
+
+- `VPS_HOST` - Your VPS IP address or hostname
+- `VPS_USERNAME` - SSH username for VPS
+- `SSH_PRIVATE_KEY` - SSH private key for VPS access
+
+### Running Tests Locally
+
+To run the same tests that run in CI:
+
+```bash
+# Run CI-like tests locally
+npm run test:ci
+
+# Or run individual commands
+npm run lint
+npm run build
+npm run test:cov
+```
+
+### Pipeline Triggers
+
+- **Push to main**: Runs tests + deployment
+- **Pull Request**: Runs tests only
+- **Manual trigger**: Available through GitHub Actions UI
+
+### Monitoring
+
+- View pipeline status: GitHub Actions tab
+- Coverage reports: [Codecov Dashboard](https://codecov.io/gh/your-username/charity-backend)
+- Build artifacts: Available in GitHub Actions runs
 
 ## API Documentation
 

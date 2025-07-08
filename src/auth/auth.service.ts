@@ -277,7 +277,7 @@ export class AuthService {
         refresh_token: refreshToken,
       };
     } catch (error) {
-      if (error instanceof UnauthorizedException) {
+      if (error instanceof UnauthorizedException || error instanceof InternalServerErrorException) {
         throw error;
       }
       throw new UnauthorizedException('Google authentication failed');
@@ -390,7 +390,7 @@ export class AuthService {
         refresh_token: refreshToken,
       };
     } catch (error) {
-      if (error instanceof UnauthorizedException) {
+      if (error instanceof UnauthorizedException || error instanceof InternalServerErrorException) {
         throw error;
       }
       throw new UnauthorizedException('Facebook authentication failed');
