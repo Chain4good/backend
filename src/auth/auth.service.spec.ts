@@ -8,7 +8,13 @@ import { RoleService } from 'src/role/role.service';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
-import { UnauthorizedException, ConflictException, InternalServerErrorException, BadRequestException, NotFoundException } from '@nestjs/common';
+import {
+  UnauthorizedException,
+  ConflictException,
+  InternalServerErrorException,
+  BadRequestException,
+  NotFoundException,
+} from '@nestjs/common';
 import { User } from '@prisma/client';
 import { verifyMessage } from 'ethers';
 
@@ -138,7 +144,9 @@ describe('AuthService', () => {
       (bcrypt.compare as jest.Mock).mockResolvedValue(true);
 
       const result = await service.validateUser(email, password);
-      expect(result).toEqual(expect.objectContaining({ email: mockUser.email }));
+      expect(result).toEqual(
+        expect.objectContaining({ email: mockUser.email }),
+      );
       expect(result).not.toHaveProperty('password');
       expect(usersService.findByEmail).toHaveBeenCalledWith(email);
       expect(bcrypt.compare).toHaveBeenCalledWith(password, hashedPassword);
@@ -185,14 +193,24 @@ describe('AuthService', () => {
       jest.spyOn(usersService, 'findByEmail').mockResolvedValue(mockUserRecord);
       jest.spyOn(roleService, 'findOneBy').mockResolvedValue(mockRole);
       jest.spyOn(jwtService, 'sign').mockReturnValue('access_token');
-      jest.spyOn(refreshTokenService, 'createRefreshToken').mockResolvedValue('refresh_token');
+      jest
+        .spyOn(refreshTokenService, 'createRefreshToken')
+        .mockResolvedValue('refresh_token');
 
       const result = await service.login(user);
 
       expect(usersService.findByEmail).toHaveBeenCalledWith(user.email);
-      expect(roleService.findOneBy).toHaveBeenCalledWith({ id: mockUserRecord.roleId });
-      expect(jwtService.sign).toHaveBeenCalledWith({ email: user.email, sub: user.id, role: mockRole.name });
-      expect(refreshTokenService.createRefreshToken).toHaveBeenCalledWith(user.id);
+      expect(roleService.findOneBy).toHaveBeenCalledWith({
+        id: mockUserRecord.roleId,
+      });
+      expect(jwtService.sign).toHaveBeenCalledWith({
+        email: user.email,
+        sub: user.id,
+        role: mockRole.name,
+      });
+      expect(refreshTokenService.createRefreshToken).toHaveBeenCalledWith(
+        user.id,
+      );
       expect(result).toEqual({
         user: { ...user, role: mockRole.name },
         access_token: 'access_token',
@@ -236,7 +254,11 @@ describe('AuthService', () => {
     });
 
     it('should throw UnauthorizedException if role is not USER or ADMIN', async () => {
-      const unauthorizedRole = { id: 2, name: 'GUEST', description: 'Guest User' };
+      const unauthorizedRole = {
+        id: 2,
+        name: 'GUEST',
+        description: 'Guest User',
+      };
       jest.spyOn(usersService, 'findByEmail').mockResolvedValue(mockUserRecord);
       jest.spyOn(roleService, 'findOneBy').mockResolvedValue(unauthorizedRole);
 
@@ -268,20 +290,32 @@ describe('AuthService', () => {
     const mockRole = { id: 1, name: 'USER', description: 'Standard User' };
 
     it('should return a new access token on successful refresh', async () => {
-      jest.spyOn(refreshTokenService, 'validateRefreshToken').mockResolvedValue(mockUser);
+      jest
+        .spyOn(refreshTokenService, 'validateRefreshToken')
+        .mockResolvedValue(mockUser);
       jest.spyOn(roleService, 'findOneBy').mockResolvedValue(mockRole);
       jest.spyOn(jwtService, 'sign').mockReturnValue('new_access_token');
 
       const result = await service.refreshAccessToken(refreshToken);
 
-      expect(refreshTokenService.validateRefreshToken).toHaveBeenCalledWith(refreshToken);
-      expect(roleService.findOneBy).toHaveBeenCalledWith({ id: mockUser.roleId });
-      expect(jwtService.sign).toHaveBeenCalledWith({ email: mockUser.email, sub: mockUser.id, role: mockRole.name });
+      expect(refreshTokenService.validateRefreshToken).toHaveBeenCalledWith(
+        refreshToken,
+      );
+      expect(roleService.findOneBy).toHaveBeenCalledWith({
+        id: mockUser.roleId,
+      });
+      expect(jwtService.sign).toHaveBeenCalledWith({
+        email: mockUser.email,
+        sub: mockUser.id,
+        role: mockRole.name,
+      });
       expect(result).toEqual({ access_token: 'new_access_token' });
     });
 
     it('should throw UnauthorizedException if refresh token is invalid', async () => {
-      jest.spyOn(refreshTokenService, 'validateRefreshToken').mockResolvedValue(null);
+      jest
+        .spyOn(refreshTokenService, 'validateRefreshToken')
+        .mockResolvedValue(null);
 
       await expect(service.refreshAccessToken(refreshToken)).rejects.toThrow(
         new UnauthorizedException('Invalid refresh token'),
@@ -289,7 +323,9 @@ describe('AuthService', () => {
     });
 
     it('should throw InternalServerErrorException if role not found', async () => {
-      jest.spyOn(refreshTokenService, 'validateRefreshToken').mockResolvedValue(mockUser);
+      jest
+        .spyOn(refreshTokenService, 'validateRefreshToken')
+        .mockResolvedValue(mockUser);
       jest.spyOn(roleService, 'findOneBy').mockResolvedValue(null);
 
       await expect(service.refreshAccessToken(refreshToken)).rejects.toThrow(
@@ -298,8 +334,14 @@ describe('AuthService', () => {
     });
 
     it('should throw UnauthorizedException if role is not USER or ADMIN', async () => {
-      const unauthorizedRole = { id: 2, name: 'GUEST', description: 'Guest User' };
-      jest.spyOn(refreshTokenService, 'validateRefreshToken').mockResolvedValue(mockUser);
+      const unauthorizedRole = {
+        id: 2,
+        name: 'GUEST',
+        description: 'Guest User',
+      };
+      jest
+        .spyOn(refreshTokenService, 'validateRefreshToken')
+        .mockResolvedValue(mockUser);
       jest.spyOn(roleService, 'findOneBy').mockResolvedValue(unauthorizedRole);
 
       await expect(service.refreshAccessToken(refreshToken)).rejects.toThrow(
@@ -309,7 +351,9 @@ describe('AuthService', () => {
 
     it('should throw UnauthorizedException if user is blocked', async () => {
       const inactiveUser = { ...mockUser, isActive: false };
-      jest.spyOn(refreshTokenService, 'validateRefreshToken').mockResolvedValue(inactiveUser);
+      jest
+        .spyOn(refreshTokenService, 'validateRefreshToken')
+        .mockResolvedValue(inactiveUser);
       jest.spyOn(roleService, 'findOneBy').mockResolvedValue(mockRole);
 
       await expect(service.refreshAccessToken(refreshToken)).rejects.toThrow(
@@ -319,7 +363,9 @@ describe('AuthService', () => {
 
     it('should throw UnauthorizedException if email not verified', async () => {
       const unverifiedUser = { ...mockUser, isVerified: false };
-      jest.spyOn(refreshTokenService, 'validateRefreshToken').mockResolvedValue(unverifiedUser);
+      jest
+        .spyOn(refreshTokenService, 'validateRefreshToken')
+        .mockResolvedValue(unverifiedUser);
       jest.spyOn(roleService, 'findOneBy').mockResolvedValue(mockRole);
 
       await expect(service.refreshAccessToken(refreshToken)).rejects.toThrow(
@@ -331,10 +377,14 @@ describe('AuthService', () => {
   describe('logout', () => {
     it('should delete the refresh token', async () => {
       const refreshToken = 'some_refresh_token';
-      jest.spyOn(refreshTokenService, 'deleteRefreshToken').mockResolvedValue(undefined);
+      jest
+        .spyOn(refreshTokenService, 'deleteRefreshToken')
+        .mockResolvedValue(undefined);
 
       await service.logout(refreshToken);
-      expect(refreshTokenService.deleteRefreshToken).toHaveBeenCalledWith(refreshToken);
+      expect(refreshTokenService.deleteRefreshToken).toHaveBeenCalledWith(
+        refreshToken,
+      );
     });
   });
 
@@ -403,32 +453,42 @@ describe('AuthService', () => {
       jest.spyOn(roleService, 'findOneBy').mockResolvedValue(mockRole);
       jest.spyOn(usersService, 'create').mockResolvedValue(createdUser);
 
-      const result = await service.verifyEmailAndCreateUser(verifyOTPDto, userData);
+      const result = await service.verifyEmailAndCreateUser(
+        verifyOTPDto,
+        userData,
+      );
 
-      expect(otpService.verifyOTP).toHaveBeenCalledWith(verifyOTPDto.email, verifyOTPDto.code);
+      expect(otpService.verifyOTP).toHaveBeenCalledWith(
+        verifyOTPDto.email,
+        verifyOTPDto.code,
+      );
       expect(roleService.findOneBy).toHaveBeenCalledWith({ name: 'USER' });
       expect(usersService.create).toHaveBeenCalledWith({
         ...userData,
         isVerified: true,
         roleId: mockRole.id,
       });
-      expect(result).toEqual(expect.objectContaining({ email: createdUser.email }));
+      expect(result).toEqual(
+        expect.objectContaining({ email: createdUser.email }),
+      );
       expect(result).not.toHaveProperty('password');
     });
 
     it('should throw UnauthorizedException if OTP is invalid', async () => {
       jest.spyOn(otpService, 'verifyOTP').mockResolvedValue(false);
 
-      await expect(service.verifyEmailAndCreateUser(verifyOTPDto, userData)).rejects.toThrow(
-        new UnauthorizedException('Invalid or expired OTP'),
-      );
+      await expect(
+        service.verifyEmailAndCreateUser(verifyOTPDto, userData),
+      ).rejects.toThrow(new UnauthorizedException('Invalid or expired OTP'));
     });
 
     it('should throw InternalServerErrorException if default role not found', async () => {
       jest.spyOn(otpService, 'verifyOTP').mockResolvedValue(true);
       jest.spyOn(roleService, 'findOneBy').mockResolvedValue(null);
 
-      await expect(service.verifyEmailAndCreateUser(verifyOTPDto, userData)).rejects.toThrow(
+      await expect(
+        service.verifyEmailAndCreateUser(verifyOTPDto, userData),
+      ).rejects.toThrow(
         new InternalServerErrorException('Default role "USER" not found'),
       );
     });
@@ -460,7 +520,9 @@ describe('AuthService', () => {
       const result = await service.getMe(userId);
 
       expect(usersService.findById).toHaveBeenCalledWith(userId);
-      expect(result).toEqual(expect.objectContaining({ email: mockUser.email }));
+      expect(result).toEqual(
+        expect.objectContaining({ email: mockUser.email }),
+      );
       expect(result).not.toHaveProperty('password');
     });
 
@@ -498,7 +560,9 @@ describe('AuthService', () => {
       (verifyMessage as jest.Mock).mockReturnValue(address);
       jest.spyOn(roleService, 'findOneBy').mockResolvedValue(mockRole);
       jest.spyOn(jwtService, 'sign').mockReturnValue('access_token');
-      jest.spyOn(refreshTokenService, 'createRefreshToken').mockResolvedValue('refresh_token');
+      jest
+        .spyOn(refreshTokenService, 'createRefreshToken')
+        .mockResolvedValue('refresh_token');
     });
 
     it('should log in existing web3 user', async () => {
@@ -521,15 +585,17 @@ describe('AuthService', () => {
 
       const result = await service.web3Login(address, signature);
 
-      expect(usersService.create).toHaveBeenCalledWith(expect.objectContaining({
-        address,
-        name: 'Người dùng Web3',
-        email: `${address}@web3.io`,
-        isVerified: true,
-        isActive: true,
-        password: '',
-        roleId: mockRole.id,
-      }));
+      expect(usersService.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          address,
+          name: 'Người dùng Web3',
+          email: `${address}@web3.io`,
+          isVerified: true,
+          isActive: true,
+          password: '',
+          roleId: mockRole.id,
+        }),
+      );
       expect(result).toEqual({
         user: mockUser,
         access_token: 'access_token',
@@ -574,11 +640,15 @@ describe('AuthService', () => {
     beforeEach(() => {
       jest.spyOn(prismaService.role, 'findUnique').mockResolvedValue(mockRole);
       jest.spyOn(jwtService, 'sign').mockReturnValue('access_token');
-      jest.spyOn(refreshTokenService, 'createRefreshToken').mockResolvedValue('refresh_token');
+      jest
+        .spyOn(refreshTokenService, 'createRefreshToken')
+        .mockResolvedValue('refresh_token');
     });
 
     it('should validate and return tokens for existing Google user', async () => {
-      jest.spyOn(prismaService.user, 'findUnique').mockResolvedValue({ ...mockUser, role: mockRole } as any);
+      jest
+        .spyOn(prismaService.user, 'findUnique')
+        .mockResolvedValue({ ...mockUser, role: mockRole } as any);
 
       const result = await service.validateGoogleUser(googleData);
 
@@ -594,8 +664,12 @@ describe('AuthService', () => {
     });
 
     it('should create new user and return tokens if Google user does not exist', async () => {
-      jest.spyOn(prismaService.user, 'findUnique').mockResolvedValue(null as any);
-      jest.spyOn(prismaService.user, 'create').mockResolvedValue({ ...mockUser, role: mockRole } as any);
+      jest
+        .spyOn(prismaService.user, 'findUnique')
+        .mockResolvedValue(null as any);
+      jest
+        .spyOn(prismaService.user, 'create')
+        .mockResolvedValue({ ...mockUser, role: mockRole } as any);
 
       const result = await service.validateGoogleUser(googleData);
 
@@ -622,7 +696,9 @@ describe('AuthService', () => {
     });
 
     it('should throw InternalServerErrorException if default USER role not found', async () => {
-      jest.spyOn(prismaService.user, 'findUnique').mockResolvedValue(null as any);
+      jest
+        .spyOn(prismaService.user, 'findUnique')
+        .mockResolvedValue(null as any);
       jest.spyOn(prismaService.role, 'findUnique').mockResolvedValue(null);
 
       await expect(service.validateGoogleUser(googleData)).rejects.toThrow(
@@ -631,7 +707,9 @@ describe('AuthService', () => {
     });
 
     it('should throw UnauthorizedException if user creation/retrieval fails', async () => {
-      jest.spyOn(prismaService.user, 'findUnique').mockResolvedValue(null as any);
+      jest
+        .spyOn(prismaService.user, 'findUnique')
+        .mockResolvedValue(null as any);
       jest.spyOn(prismaService.user, 'create').mockResolvedValue(null as any);
 
       await expect(service.validateGoogleUser(googleData)).rejects.toThrow(
@@ -640,7 +718,9 @@ describe('AuthService', () => {
     });
 
     it('should throw UnauthorizedException for generic errors', async () => {
-      jest.spyOn(prismaService.user, 'findUnique').mockRejectedValue(new Error('DB error'));
+      jest
+        .spyOn(prismaService.user, 'findUnique')
+        .mockRejectedValue(new Error('DB error'));
 
       await expect(service.validateGoogleUser(googleData)).rejects.toThrow(
         new UnauthorizedException('Google authentication failed'),
@@ -670,30 +750,45 @@ describe('AuthService', () => {
     const mockRole = { id: 1, name: 'USER', description: 'Standard User' };
 
     beforeEach(() => {
-      jest.spyOn(prismaService.user, 'findUnique').mockResolvedValue({ ...mockUser, role: mockRole } as any);
+      jest
+        .spyOn(prismaService.user, 'findUnique')
+        .mockResolvedValue({ ...mockUser, role: mockRole } as any);
     });
 
     it('should unlink Google account successfully', async () => {
       jest.spyOn(prismaService.user, 'update').mockResolvedValue(mockUser);
-      jest.spyOn(refreshTokenService, 'revokeAllUserTokens').mockResolvedValue(undefined);
+      jest
+        .spyOn(refreshTokenService, 'revokeAllUserTokens')
+        .mockResolvedValue(undefined);
 
       const result = await service.unlinkGoogle(userId);
 
-      expect(prismaService.user.findUnique).toHaveBeenCalledWith({ where: { id: userId }, include: { role: true } });
-      expect(prismaService.user.update).toHaveBeenCalledWith(expect.objectContaining({
+      expect(prismaService.user.findUnique).toHaveBeenCalledWith({
         where: { id: userId },
-        data: expect.objectContaining({
-          email: expect.stringContaining('unlinked_'),
-          image: null,
-          isVerified: false,
+        include: { role: true },
+      });
+      expect(prismaService.user.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: userId },
+          data: expect.objectContaining({
+            email: expect.stringContaining('unlinked_'),
+            image: null,
+            isVerified: false,
+          }),
         }),
-      }));
-      expect(refreshTokenService.revokeAllUserTokens).toHaveBeenCalledWith(userId);
-      expect(result).toEqual({ message: 'Google account unlinked successfully' });
+      );
+      expect(refreshTokenService.revokeAllUserTokens).toHaveBeenCalledWith(
+        userId,
+      );
+      expect(result).toEqual({
+        message: 'Google account unlinked successfully',
+      });
     });
 
     it('should throw NotFoundException if user not found', async () => {
-      jest.spyOn(prismaService.user, 'findUnique').mockResolvedValue(null as any);
+      jest
+        .spyOn(prismaService.user, 'findUnique')
+        .mockResolvedValue(null as any);
 
       await expect(service.unlinkGoogle(userId)).rejects.toThrow(
         new NotFoundException('User not found'),
@@ -702,7 +797,9 @@ describe('AuthService', () => {
 
     it('should throw BadRequestException if account was not created with Google', async () => {
       const nonGoogleUser = { ...mockUser, email: 'regular@example.com' };
-      jest.spyOn(prismaService.user, 'findUnique').mockResolvedValue({ ...nonGoogleUser, role: mockRole } as any);
+      jest
+        .spyOn(prismaService.user, 'findUnique')
+        .mockResolvedValue({ ...nonGoogleUser, role: mockRole } as any);
 
       await expect(service.unlinkGoogle(userId)).rejects.toThrow(
         new BadRequestException('This account was not created with Google'),
@@ -710,7 +807,9 @@ describe('AuthService', () => {
     });
 
     it('should throw InternalServerErrorException for generic errors', async () => {
-      jest.spyOn(prismaService.user, 'findUnique').mockRejectedValue(new Error('DB error'));
+      jest
+        .spyOn(prismaService.user, 'findUnique')
+        .mockRejectedValue(new Error('DB error'));
 
       await expect(service.unlinkGoogle(userId)).rejects.toThrow(
         new InternalServerErrorException('Failed to unlink Google account'),
@@ -747,11 +846,15 @@ describe('AuthService', () => {
     beforeEach(() => {
       jest.spyOn(prismaService.role, 'findUnique').mockResolvedValue(mockRole);
       jest.spyOn(jwtService, 'sign').mockReturnValue('access_token');
-      jest.spyOn(refreshTokenService, 'createRefreshToken').mockResolvedValue('refresh_token');
+      jest
+        .spyOn(refreshTokenService, 'createRefreshToken')
+        .mockResolvedValue('refresh_token');
     });
 
     it('should validate and return tokens for existing Facebook user', async () => {
-      jest.spyOn(prismaService.user, 'findUnique').mockResolvedValue({ ...mockUser, role: mockRole } as any);
+      jest
+        .spyOn(prismaService.user, 'findUnique')
+        .mockResolvedValue({ ...mockUser, role: mockRole } as any);
 
       const result = await service.validateFacebookUser(facebookData);
 
@@ -767,8 +870,12 @@ describe('AuthService', () => {
     });
 
     it('should create new user and return tokens if Facebook user does not exist', async () => {
-      jest.spyOn(prismaService.user, 'findUnique').mockResolvedValue(null as any);
-      jest.spyOn(prismaService.user, 'create').mockResolvedValue({ ...mockUser, role: mockRole } as any);
+      jest
+        .spyOn(prismaService.user, 'findUnique')
+        .mockResolvedValue(null as any);
+      jest
+        .spyOn(prismaService.user, 'create')
+        .mockResolvedValue({ ...mockUser, role: mockRole } as any);
 
       const result = await service.validateFacebookUser(facebookData);
 
@@ -794,8 +901,17 @@ describe('AuthService', () => {
       });
     });
 
+    it('should throw BadRequestException if image is null', async () => {
+      jest
+        .spyOn(prismaService.user, 'findUnique')
+        .mockResolvedValue({ ...mockUser, image: null } as any)
+        .mockResolvedValue({ ...mockUser, image: null } as any);
+    });
+
     it('should throw InternalServerErrorException if default USER role not found', async () => {
-      jest.spyOn(prismaService.user, 'findUnique').mockResolvedValue(null as any);
+      jest
+        .spyOn(prismaService.user, 'findUnique')
+        .mockResolvedValue(null as any);
       jest.spyOn(prismaService.role, 'findUnique').mockResolvedValue(null);
 
       await expect(service.validateFacebookUser(facebookData)).rejects.toThrow(
@@ -804,7 +920,9 @@ describe('AuthService', () => {
     });
 
     it('should throw UnauthorizedException if user creation/retrieval fails', async () => {
-      jest.spyOn(prismaService.user, 'findUnique').mockResolvedValue(null as any);
+      jest
+        .spyOn(prismaService.user, 'findUnique')
+        .mockResolvedValue(null as any);
       jest.spyOn(prismaService.user, 'create').mockResolvedValue(null as any);
 
       await expect(service.validateFacebookUser(facebookData)).rejects.toThrow(
@@ -813,7 +931,9 @@ describe('AuthService', () => {
     });
 
     it('should throw UnauthorizedException for generic errors', async () => {
-      jest.spyOn(prismaService.user, 'findUnique').mockRejectedValue(new Error('DB error'));
+      jest
+        .spyOn(prismaService.user, 'findUnique')
+        .mockRejectedValue(new Error('DB error'));
 
       await expect(service.validateFacebookUser(facebookData)).rejects.toThrow(
         new UnauthorizedException('Facebook authentication failed'),
