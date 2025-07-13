@@ -26,6 +26,7 @@ enum CampaignStatus {
   ACTIVE
   FINISHED
   CANCELLED
+  NEED_VERIFICATION
 }
 
 enum ReportStatus {
@@ -68,17 +69,17 @@ model FundraiseType {
 }
 
 model User {
-  id          Int     @id @default(autoincrement())
-  email       String  @unique
+  id          Int       @id @default(autoincrement())
+  email       String    @unique
   password    String
   name        String?
   phoneNumber String?
-  address     String  @unique
+  address     String    @unique
   bio         String?
   image       String?
   cover       String?
-  isVerified  Boolean @default(false)
-  isActive    Boolean @default(true)
+  isVerified  Boolean   @default(false)
+  isActive    Boolean   @default(true)
   kycStatus   KycStatus @default(PENDING)
 
   roleId    Int
@@ -91,26 +92,28 @@ model User {
   reports   Report[]
   likes     Like[]
 
-  refreshTokens RefreshToken[]
-  Notification  Notification[]
-  Post          Post[]
-  UserBadge     UserBadge[]
-  kycDocuments  KycDocument[]
+  refreshTokens             RefreshToken[]
+  Notification              Notification[]
+  Post                      Post[]
+  UserBadge                 UserBadge[]
+  kycDocuments              KycDocument[]
+  adminVerificationRequests CampaignVerificationRequest[] @relation("AdminVerificationRequests")
+  auditLogs                 CampaignAuditLog[]            @relation("UserAuditLogs")
 }
 
 model KycDocument {
-  id          Int       @id @default(autoincrement())
-  userId      Int       @unique
-  user        User      @relation(fields: [userId], references: [id])
-  documentType String
-  documentUrl String
-  facialImageUrl String
-  status      KycStatus @default(PENDING)
+  id              Int       @id @default(autoincrement())
+  userId          Int       @unique
+  user            User      @relation(fields: [userId], references: [id])
+  documentType    String
+  documentUrl     String
+  facialImageUrl  String
+  status          KycStatus @default(PENDING)
   rejectionReason String?
-  uploadedAt  DateTime  @default(now())
-  reviewedAt  DateTime?
-  issueDate   DateTime?
-  expiryDate  DateTime?
+  uploadedAt      DateTime  @default(now())
+  reviewedAt      DateTime?
+  issueDate       DateTime?
+  expiryDate      DateTime?
 }
 
 model Campaign {
@@ -146,11 +149,13 @@ model Campaign {
   fundraiseType FundraiseType? @relation(fields: [fundraiseTypeId], references: [id])
   cover         Cover?         @relation(fields: [coverId], references: [id])
 
-  reports    Report[]
-  images     Image[]
-  donations  Donation[]
-  comments   Comment[]
-  progresses CampaignProgress[]
+  reports              Report[]
+  images               Image[]
+  donations            Donation[]
+  comments             Comment[]
+  progresses           CampaignProgress[]
+  verificationRequests CampaignVerificationRequest[]
+  auditLogs            CampaignAuditLog[]
 }
 
 model Cover {
@@ -331,4 +336,51 @@ model CampaignProgress {
 
   campaign   Campaign @relation(fields: [campaignId], references: [id])
   campaignId Int
+}
+
+model CampaignVerificationRequest {
+  id         Int      @id @default(autoincrement())
+  message    String // Admin's message explaining what additional verification is needed
+  reason     String? // Optional reason category
+  isResolved Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  // Admin who made the request
+  adminId Int
+  admin   User @relation("AdminVerificationRequests", fields: [adminId], references: [id])
+
+  // Campaign that needs verification
+  campaignId Int
+  campaign   Campaign @relation(fields: [campaignId], references: [id])
+
+  // Evidence responses from campaign owner
+  evidenceResponses CampaignEvidenceResponse[]
+}
+
+model CampaignEvidenceResponse {
+  id          Int      @id @default(autoincrement())
+  description String? // Optional description from campaign owner
+  documents   String[] // URLs of uploaded documents/images
+  createdAt   DateTime @default(now())
+
+  // Reference to the verification request
+  verificationRequestId Int
+  verificationRequest   CampaignVerificationRequest @relation(fields: [verificationRequestId], references: [id])
+}
+
+model CampaignAuditLog {
+  id          Int      @id @default(autoincrement())
+  action      String // Action performed (e.g., "STATUS_CHANGED", "VERIFICATION_REQUESTED", "EVIDENCE_SUBMITTED")
+  description String // Human-readable description of the action
+  metadata    Json? // Additional data about the action
+  createdAt   DateTime @default(now())
+
+  // User who performed the action
+  userId Int
+  user   User @relation("UserAuditLogs", fields: [userId], references: [id])
+
+  // Campaign that was affected
+  campaignId Int
+  campaign   Campaign @relation(fields: [campaignId], references: [id])
 }

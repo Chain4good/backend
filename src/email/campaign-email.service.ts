@@ -51,6 +51,7 @@ export class CampaignEmailService {
       CANCELLED: 'Đã hủy',
       PENDING: 'Chờ xét duyệt',
       DRAFT: 'Nháp',
+      NEED_VERIFICATION: 'Cần bổ sung tài liệu',
     };
 
     const statusClassMap = {
@@ -61,6 +62,7 @@ export class CampaignEmailService {
       CANCELLED: 'cancelled',
       PENDING: 'pending',
       DRAFT: 'draft',
+      NEED_VERIFICATION: 'need-verification',
     };
 
     const statusMessages = {
@@ -74,6 +76,8 @@ export class CampaignEmailService {
       CANCELLED: 'Chiến dịch của bạn đã bị hủy bởi quản trị viên.',
       PENDING: 'Chiến dịch của bạn đang chờ xét duyệt từ quản trị viên.',
       DRAFT: 'Chiến dịch của bạn đã được chuyển về trạng thái nháp.',
+      NEED_VERIFICATION:
+        'Chiến dịch của bạn cần bổ sung thêm tài liệu xác minh.',
     };
 
     const nextStepsMap = {
@@ -86,6 +90,7 @@ export class CampaignEmailService {
       CANCELLED: 'Liên hệ với quản trị viên để biết thêm chi tiết.',
       PENDING: 'Vui lòng đợi quản trị viên xem xét và phê duyệt.',
       DRAFT: 'Bạn có thể tiếp tục chỉnh sửa và gửi lại khi sẵn sàng.',
+      NEED_VERIFICATION: 'Vui lòng bổ sung tài liệu theo yêu cầu và gửi lại.',
     };
 
     const subject = `[Charity Platform] Cập nhật trạng thái chiến dịch: ${campaignTitle}`;
@@ -106,6 +111,57 @@ export class CampaignEmailService {
         nextSteps: nextStepsMap[newStatus],
         reason,
         campaignUrl,
+      },
+    });
+  }
+
+  async sendVerificationRequestEmail(
+    userEmail: string,
+    campaignTitle: string,
+    campaignCreatorName: string,
+    adminMessage: string,
+    campaignId: number,
+    reason?: string,
+  ) {
+    const campaignUrl = `${process.env.FRONTEND_URL}/campaigns/${campaignId}`;
+
+    await this.mailerService.sendMail({
+      to: userEmail,
+      subject: 'Yêu cầu bổ sung tài liệu xác minh chiến dịch',
+      template: 'verification-request',
+      context: {
+        campaignCreatorName,
+        campaignTitle,
+        adminMessage,
+        reason,
+        campaignUrl,
+        supportUrl: `${process.env.FRONTEND_URL}/support`,
+        privacyUrl: `${process.env.FRONTEND_URL}/privacy`,
+        termsUrl: `${process.env.FRONTEND_URL}/terms`,
+        logoUrl: `${process.env.FRONTEND_URL}/logo.png`,
+        currentYear: new Date().getFullYear(),
+      },
+    });
+  }
+
+  async sendEvidenceSubmittedEmail(
+    adminEmail: string,
+    campaignTitle: string,
+    adminName: string,
+    campaignId: number,
+  ) {
+    const campaignUrl = `${process.env.ADMIN_URL}/campaigns/${campaignId}`;
+
+    await this.mailerService.sendMail({
+      to: adminEmail,
+      subject: 'Tài liệu xác minh chiến dịch đã được gửi',
+      template: 'evidence-submitted-admin',
+      context: {
+        adminName,
+        campaignTitle,
+        campaignUrl,
+        logoUrl: `${process.env.FRONTEND_URL}/logo.png`,
+        currentYear: new Date().getFullYear(),
       },
     });
   }

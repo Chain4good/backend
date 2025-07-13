@@ -1,8 +1,10 @@
 import { CampaignStatus } from '@prisma/client';
 import { Transform } from 'class-transformer';
 import {
+  IsArray,
   IsDate,
   IsEnum,
+  IsNotEmpty,
   IsNumber,
   IsOptional,
   IsString,
@@ -156,4 +158,25 @@ export class GetCampaignDonationHistoryDto {
   @IsOptional()
   @IsEnum(['day', 'week', 'month'])
   groupBy?: 'day' | 'week' | 'month' = 'day';
+}
+
+export class RequestVerificationDto {
+  @IsString()
+  @IsNotEmpty()
+  message: string;
+
+  @IsOptional()
+  @IsString()
+  reason?: string;
+}
+
+export class AddEvidenceDto {
+  @IsOptional()
+  @IsString()
+  description?: string;
+
+  @IsArray()
+  @IsString({ each: true })
+  @IsNotEmpty()
+  documents: string[];
 }

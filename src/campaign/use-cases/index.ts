@@ -11,3 +11,5 @@ export * from './add-campaign-progress.use-case';
 export * from './get-campaign-progress-history.use-case';
 export * from './get-campaign-donation-history.use-case';
 export * from './generate-financial-report.use-case';
+export * from './request-campaign-verification.use-case';
+export * from './add-campaign-evidence.use-case';

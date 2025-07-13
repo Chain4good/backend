@@ -23,6 +23,8 @@ import {
   GetCampaignDonationHistoryDto,
   RejectCampaignDto,
   UpdateCampaignStatusDto,
+  RequestVerificationDto,
+  AddEvidenceDto,
 } from './dto/campaign.dto';
 import { UpdateCampaignDto } from './dto/update-campaign.dto';
 import {
@@ -40,6 +42,8 @@ import {
   UpdateCampaignStatusUseCase,
   UpdateCampaignUseCase,
 } from './use-cases';
+import { RequestCampaignVerificationUseCase } from './use-cases/request-campaign-verification.use-case';
+import { AddCampaignEvidenceUseCase } from './use-cases/add-campaign-evidence.use-case';
 
 @Controller('campaigns')
 export class CampaignController {
@@ -58,6 +62,8 @@ export class CampaignController {
     private readonly getCampaignProgressHistoryUseCase: GetCampaignProgressHistoryUseCase,
     private readonly getCampaignDonationHistoryUseCase: GetCampaignDonationHistoryUseCase,
     private readonly generateFinancialReportUseCase: GenerateFinancialReportUseCase,
+    private readonly requestCampaignVerificationUseCase: RequestCampaignVerificationUseCase,
+    private readonly addCampaignEvidenceUseCase: AddCampaignEvidenceUseCase,
   ) {}
 
   @Post()
@@ -199,6 +205,45 @@ export class CampaignController {
     return {
       message: 'Campaign rejected successfully',
       campaign,
+    };
+  }
+
+  @Post(':id/request-verification')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN')
+  async requestVerification(
+    @Param('id') id: string,
+    @Body() requestVerificationDto: RequestVerificationDto,
+    @GetUser() user: UserExtract,
+  ): Promise<{ message: string; verificationRequest: any; campaign: any }> {
+    const result = await this.requestCampaignVerificationUseCase.execute(
+      +id,
+      user.id,
+      requestVerificationDto,
+    );
+    return {
+      message: result.message,
+      verificationRequest: result.verificationRequest,
+      campaign: result.campaign,
+    };
+  }
+
+  @Post(':id/add-evidence')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('USER', 'ADMIN')
+  async addEvidence(
+    @Param('id') id: string,
+    @Body() addEvidenceDto: AddEvidenceDto,
+    @GetUser() user: UserExtract,
+  ): Promise<{ message: string; evidenceResponse: any }> {
+    const result = await this.addCampaignEvidenceUseCase.execute(
+      +id,
+      user.id,
+      addEvidenceDto,
+    );
+    return {
+      message: result.message,
+      evidenceResponse: result.evidenceResponse,
     };
   }
 }

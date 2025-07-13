@@ -51,6 +51,7 @@ export class UpdateCampaignStatusUseCase {
       CANCELLED: `Chiến dịch "${campaign.title}" của bạn đã bị hủy bởi quản trị viên.`,
       PENDING: `Chiến dịch "${campaign.title}" của bạn đang chờ xét duyệt.`,
       DRAFT: `Chiến dịch "${campaign.title}" của bạn đã được chuyển về trạng thái nháp.`,
+      NEED_VERIFICATION: `Chiến dịch "${campaign.title}" của bạn cần bổ sung thêm tài liệu xác minh.`,
     };
 
     const content =

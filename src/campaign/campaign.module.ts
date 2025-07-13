@@ -24,7 +24,10 @@ import {
   RemoveCampaignUseCase,
   UpdateCampaignStatusUseCase,
   UpdateCampaignUseCase,
+  RequestCampaignVerificationUseCase,
+  AddCampaignEvidenceUseCase,
 } from './use-cases';
+import { CampaignAuditService } from './services/campaign-audit.service';
 
 @Module({
   imports: [
@@ -41,6 +44,7 @@ import {
     CampaignRepo,
     CampaignCreatedListener,
     CampaignEmailService,
+    CampaignAuditService,
     FindAllCampaignUseCase,
     FindAllCampaignValidUseCase,
     FindMyCampaignUseCase,
@@ -54,6 +58,8 @@ import {
     GetCampaignProgressHistoryUseCase,
     GetCampaignDonationHistoryUseCase,
     GenerateFinancialReportUseCase,
+    RequestCampaignVerificationUseCase,
+    AddCampaignEvidenceUseCase,
   ],
   exports: [CampaignService, FindOneCampaignUseCase],
 })

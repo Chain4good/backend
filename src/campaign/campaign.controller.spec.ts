@@ -31,6 +31,8 @@ import {
   UpdateCampaignStatusUseCase,
   UpdateCampaignUseCase,
 } from './use-cases';
+import { RequestCampaignVerificationUseCase } from './use-cases/request-campaign-verification.use-case';
+import { AddCampaignEvidenceUseCase } from './use-cases/add-campaign-evidence.use-case';
 
 describe('CampaignController', () => {
   let controller: CampaignController;
@@ -111,6 +113,8 @@ describe('CampaignController', () => {
         { provide: GetCampaignProgressHistoryUseCase, useValue: mockUseCases },
         { provide: GetCampaignDonationHistoryUseCase, useValue: mockUseCases },
         { provide: GenerateFinancialReportUseCase, useValue: mockUseCases },
+        { provide: RequestCampaignVerificationUseCase, useValue: mockUseCases },
+        { provide: AddCampaignEvidenceUseCase, useValue: mockUseCases },
       ],
     })
       .overrideGuard(JwtAuthGuard)
